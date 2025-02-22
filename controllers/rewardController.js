@@ -17,8 +17,8 @@ exports.createReward = async (userId, pointsChange, reason) => {
     // Create a new record in the Reward schema for this change
     const newReward = new Reward({
       user: userId,
-      pointsChanged: pointsChange,
-      reason: reason
+      pointsChanged: [pointsChange],
+      reasons: [reason]
     });
 
     await newReward.save();
@@ -47,7 +47,6 @@ exports.getRewardByUserId = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
  
 
 // Controller to add or subtract reward points for a user

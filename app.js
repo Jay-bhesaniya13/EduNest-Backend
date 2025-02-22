@@ -1,5 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const { Mongo_URI } = require('./config/env'); // Import config
+
 const cron = require("node-cron");
 const Course = require("./models/Course"); // Import Course model
 
@@ -19,7 +21,7 @@ const PORT = process.env.PORT || 5000;
 app.use(express.json());
 
 // Routes 
-app.use("/api/student", studentRoutes); 
+app.use("/api/student", studentRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/teacher", teacherRoutes);
 app.use("/api/module", moduleRoutes);
@@ -28,11 +30,22 @@ app.use("/api/question", questionRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/content", contentRoutes);
 
-// Connect to MongoDB
+// Connect to MongoDB to local
+
+// mongoose
+//   .connect("mongodb://localhost:27017/edunest")
+// .then(() => console.log("Connected to MongoDB"))
+// .catch((err) => console.log("Failed to connect to MongoDB:", err));
+
+
+// Connect to MongoDB to global 
+
 mongoose
-  .connect("mongodb://localhost:27017/edunest")
-  .then(() => console.log("Connected to MongoDB"))
+  .connect(Mongo_URI)
+  .then(() => console.log("✅ MongoDB Connected Successfully!"))
   .catch((err) => console.log("Failed to connect to MongoDB:", err));
+
+
 
 // 🕒 Cron Job: Updates sales data on the 1st of every month at 00:00
 cron.schedule("0 0 1 * *", async () => {

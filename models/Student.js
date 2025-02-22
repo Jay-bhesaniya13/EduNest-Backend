@@ -8,14 +8,14 @@ const studentSchema = new mongoose.Schema({
   contactNumber: { type: Number },
   isVerified: { type: Boolean, default: true },
   isActive: { type: Boolean, default: true },
-  profilepicURL:{type:String,required:true},
+  profilepicURL:{type:String,required:false},
   about:{type:String},
   skills:[{type:String}],
   recent_achievement:[{type:String}],
-  join_date:{type:Date,required:true} ,
+  join_date:{type:Date,required:true,default: Date.now} ,
   city:{type:String},
-  courses_enrolled:{type:Number},
-  modules_enrolled:{type:Number},
+  courses_enrolled:{type:Number,default:0},
+  modules_enrolled:{type:Number,default:0},
   
   rewardPoint: { 
     type: Number, 

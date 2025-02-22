@@ -1,42 +1,27 @@
 const Student = require("../models/Student");
 const Reward = require("../models/Reward");
-const config= require("../models/config")
-
-// Function to add reward points and create history
-const createReward = async (studentId, pointsChange, reason) => {
-  try {
-    const student = await Student.findById(studentId);
-
-    if (!student) {
-      throw new Error("Student not found");
-    }
-
-    // Update the student's current reward points
-    student.rewardPoint += pointsChange;
-    await student.save();
-
-    // Create a new record in the Reward schema for this change
-    const newReward = new Reward({
-      student: studentId,
-      pointsChanged: pointsChange,
-      reason: reason
-    });
-
-    await newReward.save();
-
-    return newReward; // Return the created reward history entry
-  } catch (error) {
-    throw new Error(error.message);
-  }
-};
-
+const config = require("../models/config")
 
 // create new student with New reward object
 exports.createStudent = async (req, res) => {
   try {
-    const { name, email, password, contactNumber } = req.body;
+    const {
+      name,
+      email,
+      password,
+      contactNumber,
+      profilepicURL,
+      about,
+      skills,
+      city,
+    } = req.body;
 
-    // Check if student already exists
+    // Validate required fields
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: "Name, Email, and Password are required." });
+    }
+
+    // Check if the student already exists
     const existStudent = await Student.findOne({ email });
     if (existStudent) {
       if (!existStudent.isActive) {
@@ -50,22 +35,29 @@ exports.createStudent = async (req, res) => {
       return res.status(400).json({ message: "Student already exists and is active." });
     }
 
-    // Create new Student
+    // Create new student
     const newStudent = new Student({
       name,
       email,
       password,
-      contactNumber
+      contactNumber,
+      profilepicURL,
+      about,
+      skills,
+      city,
+      join_date: new Date(), // Default to current date
+      rewardPoint: config.REWARD_POINT_ON_ACCOUNT_CREATION
     });
 
     const savedStudent = await newStudent.save();
 
-    // Attempt to create the reward object
+    // Create reward history
     try {
       const newReward = new Reward({
         student: savedStudent._id,
-        pointsChanged: [config.REWARD_POINT_ON_ACCOUNT_CREATION], // Use the config value for reward points
-        reasons: ["Account Created"]  // Corresponding reason
+        pointsChanged: [config.REWARD_POINT_ON_ACCOUNT_CREATION],
+        reasons: ["Account Created"],
+        timestamps: [Date.now()]
       });
 
       await newReward.save();
@@ -77,15 +69,13 @@ exports.createStudent = async (req, res) => {
       });
 
     } catch (rewardError) {
-       // If reward creation fails, delete the student to maintain data consistency
-      await Student.findByIdAndDelete(savedStudent._id);
-      return res.status(500).json({ error: "Failed to create reward, student registration rolled back." });
+      await Student.findByIdAndDelete(savedStudent._id); // Rollback student creation if reward creation fails
+      return res.status(500).json({ error: "Failed to create reward, student registration rolled back." + rewardError });
     }
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 };
-
 
 // Controller to modify reward points (Example of adding points or applying penalty)
 exports.modifyReward = async (req, res) => {
