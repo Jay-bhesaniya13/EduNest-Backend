@@ -1,7 +1,7 @@
 const fs = require("fs");
 const ffmpeg = require("fluent-ffmpeg");
 const multer = require("multer");
-const { admin, db, projectId } = require("../config/firebase");
+const { admin, db, projectId } = require("../firebase");
 const Content = require("../models/Content");
 
 // Define file type filters for image and video
