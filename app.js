@@ -21,6 +21,11 @@ const PORT = process.env.PORT || 5000;
 // Middleware to parse JSON bodies
 app.use(express.json());
 
+// default
+app.get("/", (req, res) => {
+  res.send("Hello");
+});
+
 // Routes 
 app.use("/api/student", studentRoutes);
 app.use("/api/admin", adminRoutes);
@@ -30,6 +35,8 @@ app.use("/api/enrollment", enrollmentRoutes);
 app.use("/api/question", questionRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/content", contentRoutes);
+
+
 
 // Connect to MongoDB to local
 
