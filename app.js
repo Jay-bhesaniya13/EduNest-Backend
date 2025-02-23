@@ -1,7 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
-const { Mongo_URI } = require('./config/env'); // Import config
-
+require('dotenv').config(); 
+ 
 const cron = require("node-cron");
 const Course = require("./models/Course"); // Import Course model
 
@@ -15,6 +15,7 @@ const contentRoutes = require("./routes/contentRoutes");
 const quizRoutes = require("./routes/quizRoutes");
 
 const app = express();
+const Mongo_URI=process.env.MONGO_URI;
 const PORT = process.env.PORT || 5000;
 
 // Middleware to parse JSON bodies
@@ -63,3 +64,4 @@ cron.schedule("0 0 1 * *", async () => {
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
+
