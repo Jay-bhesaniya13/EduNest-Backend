@@ -5,14 +5,19 @@ const {
   getTeacherById,
   updateTeacher,
   deleteTeacher,
-  getAllCoursesForteacher
+  getAllCoursesForteacher,
+  loginTeacher,
+  registerTeacher
  } = require("../controllers/teacherController");
 
 const router = express.Router();
 
 // router.get("/course/:teacherId", getAllCoursesForteacher); // get all courses for teacher by teacherId
+
+router.post("/register", registerTeacher);
+router.post("/login",loginTeacher);
 router.get("/", getAllTeachers);
-router.post("/create", createTeacher);
+
 router.get("/:teacherId", getTeacherById); // get teacher details by teacherId
 router.put("/:teacherId", updateTeacher);  // update teacher details
 router.delete("/:teacherId", deleteTeacher);// deactivate

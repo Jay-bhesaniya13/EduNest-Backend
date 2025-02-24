@@ -11,10 +11,10 @@ const teacherSchema = new mongoose.Schema({
   areas_of_expertise:[{type:String}],
   city:{type:String},
   
-  totalEarning:{type:Number},
+  totalEarning:{type:Number, default:0},
   averageRating:{type:Number},
   total_students:{type:Number},
-  course_created:{type:String},
+  course_created:{type:String,default:0},
   join_date:{type:Date,required:true} ,
   isVerified: { type: Boolean, default: true },
   isActive: { type: Boolean, default: true },

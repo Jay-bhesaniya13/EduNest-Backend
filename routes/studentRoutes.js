@@ -1,6 +1,9 @@
 const express = require("express");
 const {
-  createStudent,
+  loginStudent,
+   registerStudent,
+  verifyOTP,
+  resendOTP,
   getAllStudents,
   getStudentById,
   updateStudent,
@@ -9,7 +12,12 @@ const {
 
 const router = express.Router();
 
-router.post("/create", createStudent);
+router.post("/login", loginStudent);
+
+router.post("/register", registerStudent);  // Send OTP & Register
+router.post("/verify-otp", verifyOTP);      // Verify OTP
+router.post("/resend-otp", resendOTP);      // Resend OTP if expired
+
 router.get("/", getAllStudents);
 router.get("/:studentId", getStudentById);
 router.put("/:studentId", updateStudent);
