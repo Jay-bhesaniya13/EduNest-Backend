@@ -1,102 +1,226 @@
+require("dotenv").config();
+const jwtSecret = process.env.JWT_SECRET;
+const REWARD_POINT_ON_ACCOUNT_CREATION=process.REWARD_POINT_ON_ACCOUNT_CREATION
+
 const Student = require("../models/Student");
 const Reward = require("../models/Reward");
-const config = require("../models/config")
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 
-// create new student with New reward object
-exports.createStudent = async (req, res) => {
+  
+
+// 🔹 Function to generate a 6-digit OTP
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+// 🔹 Configure Nodemailer for email OTP delivery
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER, 
+    pass: process.env.EMAIL_PASS 
+  }
+});
+
+// 1️⃣ **REGISTER STUDENT & SEND OTP**
+exports.registerStudent = async (req, res) => {
   try {
-    const {
-      name,
-      email,
-      password,
-      contactNumber,
-      profilepicURL,
-      about,
-      skills,
-      city,
-    } = req.body;
+    const { name, email, password, contactNumber, profilepicURL, about, skills, city } = req.body;
 
-    // Validate required fields
     if (!name || !email || !password) {
       return res.status(400).json({ error: "Name, Email, and Password are required." });
     }
 
-    // Check if the student already exists
     const existStudent = await Student.findOne({ email });
     if (existStudent) {
-      if (!existStudent.isActive) {
-        existStudent.isActive = true;
-        await existStudent.save();
-        return res.status(201).json({
-          message: "Student activated successfully",
-          student: existStudent
-        });
-      }
-      return res.status(400).json({ message: "Student already exists and is active." });
+      return res.status(400).json({ message: "Student already exists. Please login." });
     }
 
-    // Create new student
+    // 🔹 Hash the password before saving
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 🔹 Generate OTP
+    const otp = generateOTP();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // OTP expires in 10 minutes
+
     const newStudent = new Student({
       name,
       email,
-      password,
+      password: hashedPassword, // Store hashed password
       contactNumber,
       profilepicURL,
       about,
       skills,
       city,
-      join_date: new Date(), // Default to current date
-      rewardPoint: config.REWARD_POINT_ON_ACCOUNT_CREATION
+      otp, // Save OTP in DB
+      otpExpiry,
+      isVerified: false, // Default: false until OTP is verified
+      rewardPoint: REWARD_POINT_ON_ACCOUNT_CREATION
     });
 
-    const savedStudent = await newStudent.save();
+    await newStudent.save();
 
-    // Create reward history
-    try {
-      const newReward = new Reward({
-        student: savedStudent._id,
-        pointsChanged: [config.REWARD_POINT_ON_ACCOUNT_CREATION],
-        reasons: ["Account Created"],
-        timestamps: [Date.now()]
-      });
+    // 🔹 Send OTP via Email
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Verify Your EduNest Account - OTP",
+      text: `Your OTP for registration is: ${otp}. This OTP will expire in 10 minutes.`
+    };
 
-      await newReward.save();
+    await transporter.sendMail(mailOptions);
 
-      return res.status(201).json({
-        message: "Student created successfully with reward points history.",
-        student: savedStudent,
-        rewardHistory: newReward
-      });
+    return res.status(200).json({ message: "OTP sent to your email. Verify to complete registration." });
 
-    } catch (rewardError) {
-      await Student.findByIdAndDelete(savedStudent._id); // Rollback student creation if reward creation fails
-      return res.status(500).json({ error: "Failed to create reward, student registration rolled back." + rewardError });
-    }
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 };
 
-// Controller to modify reward points (Example of adding points or applying penalty)
-exports.modifyReward = async (req, res) => {
+// 2️⃣ **VERIFY OTP & ACTIVATE ACCOUNT**
+exports.verifyOTP = async (req, res) => {
   try {
-    const { studentId, pointsChange, reason } = req.body;
+    const { email, otp } = req.body;
 
-    if (!studentId || pointsChange === undefined || !reason) {
-      return res.status(400).json({ error: "Missing required fields" });
+    const student = await Student.findOne({ email });
+
+    if (!student) {
+      return res.status(400).json({ error: "Student not found." });
     }
 
-    // Add reward points and create history
-    const newReward = await createReward(studentId, pointsChange, reason);
+    if (student.isVerified) {
+      return res.status(400).json({ message: "Student already verified." });
+    }
 
-    res.status(200).json({
-      message: "Reward points updated successfully.",
-      rewardHistory: newReward
+    if (!student.otp || student.otpExpiry < new Date()) {
+      return res.status(400).json({ error: "OTP expired. Request a new one." });
+    }
+
+    if (student.otp !== otp) {
+      return res.status(400).json({ error: "Invalid OTP." });
+    }
+
+    // 🔹 Mark student as verified
+    student.isVerified = true;
+    student.otp = null; // Remove OTP after verification
+    student.otpExpiry = null;
+    await student.save();
+
+    // 🔹 Reward student
+    const newReward = new Reward({
+      student: student._id,
+      pointsChanged: [REWARD_POINT_ON_ACCOUNT_CREATION],
+      reasons: ["Account Verified"],
+      timestamps: [Date.now()]
     });
+
+    await newReward.save();
+
+    return res.status(200).json({
+      message: "Student verified successfully!",
+      student
+    });
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
+
+// 3️⃣ **RESEND OTP IF EXPIRED**
+exports.resendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const student = await Student.findOne({ email });
+
+    if (!student) {
+      return res.status(400).json({ error: "Student not found." });
+    }
+
+    if (student.isVerified) {
+      return res.status(400).json({ message: "Student already verified." });
+    }
+
+    // 🔹 Generate new OTP
+    const newOTP = generateOTP();
+    student.otp = newOTP;
+    student.otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    await student.save();
+
+    // 🔹 Send new OTP via Email
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Resend OTP - EduNest",
+      text: `Your new OTP is: ${newOTP}. This OTP will expire in 10 minutes.`
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    return res.status(200).json({ message: "New OTP sent to your email." });
+
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+// 4️⃣ **LOGIN WITH VERIFIED ACCOUNT**
+exports.loginStudent = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and Password are required." });
+    }
+
+    const student = await Student.findOne({ email });
+    if (!student || !student.isActive) {
+      return res.status(404).json({ error: "Student not found or inactive." });
+    }
+
+    if (!student.isVerified) {
+      return res.status(403).json({ error: "Account not verified. Please verify OTP first." });
+    }
+
+    // 🔹 Compare the password
+    const isMatch = await bcrypt.compare(password, student.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid credentials." });
+    }
+
+    // 🔹 Generate JWT Token
+    const token = jwt.sign({ id: student._id }, jwtSecret , { expiresIn: "7d" });
+
+    return res.status(200).json({
+      message: "Login successful.",
+      token,
+      student
+    });
+
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+//  // Controller to modify reward points (Example of adding points or applying penalty)
+// exports.modifyReward = async (req, res) => {
+//   try {
+//     const { studentId, pointsChange, reason } = req.body;
+
+//     if (!studentId || pointsChange === undefined || !reason) {
+//       return res.status(400).json({ error: "Missing required fields" });
+//     }
+
+//     // Add reward points and create history
+//     const newReward = await createReward(studentId, pointsChange, reason);
+
+//     res.status(200).json({
+//       message: "Reward points updated successfully.",
+//       rewardHistory: newReward
+//     });
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
 
 // Controller to get all students
 exports.getAllStudents = async (req, res) => {
