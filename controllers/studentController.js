@@ -10,7 +10,6 @@ const nodemailer = require("nodemailer");
 const TemporaryOTP = require("../models/TemporaryOTP")
 
 
-
 // 🔹 Function to generate a 6-digit OTP
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000);
 
@@ -113,7 +112,7 @@ exports.verifyOTP = async (req, res) => {
       await newStudent.save();
 
       // 🔹 Ensure Reward Points Are Added Correctly
-      const rewardPoints = REWARD_POINT_ON_ACCOUNT_CREATION;
+      const rewardPoints = Number(REWARD_POINT_ON_ACCOUNT_CREATION);
 
       const newReward = new Reward({
         student: newStudent._id,
@@ -135,7 +134,7 @@ exports.verifyOTP = async (req, res) => {
     } catch (rewardError) {
       console.error("Reward creation failed:", rewardError.message);
       await Student.findByIdAndDelete(newStudent._id); // Rollback student creation
-      return res.status(500).json({ error: "Reward creation failed. Please try again.   "+ rewardError.message });
+      return res.status(500).json({ error: "Reward creation failed. Please try again.   " + rewardError.message + rewardPoints });
     }
 
   } catch (error) {
