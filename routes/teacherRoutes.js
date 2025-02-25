@@ -1,25 +1,27 @@
 const express = require("express");
 const {
-  createTeacher,
+  registerTeacher,
+  verifyTeacherOTP,
+  resendTeacherOTP,
+  loginTeacher,
   getAllTeachers,
   getTeacherById,
   updateTeacher,
   deleteTeacher,
-  getAllCoursesForteacher,
-  loginTeacher,
-  registerTeacher
- } = require("../controllers/teacherController");
+} = require("../controllers/teacherController");
 
 const router = express.Router();
 
-// router.get("/course/:teacherId", getAllCoursesForteacher); // get all courses for teacher by teacherId
+// 🔹 **Authentication Routes**
+router.post("/register", registerTeacher);   // Register teacher & send OTP
+router.post("/verify-otp", verifyTeacherOTP); // Verify OTP & activate account
+router.post("/resend-otp", resendTeacherOTP); // Resend OTP if expired
+router.post("/login", loginTeacher);         // Teacher login
 
-router.post("/register", registerTeacher);
-router.post("/login",loginTeacher);
-router.get("/", getAllTeachers);
-
-router.get("/:teacherId", getTeacherById); // get teacher details by teacherId
-router.put("/:teacherId", updateTeacher);  // update teacher details
-router.delete("/:teacherId", deleteTeacher);// deactivate
+// 🔹 **Teacher Management Routes**
+router.get("/", getAllTeachers);             // Get all teachers
+router.get("/:teacherId", getTeacherById);   // Get teacher by ID
+router.put("/:teacherId", updateTeacher);    // Update teacher details
+router.delete("/:teacherId", deleteTeacher); // Deactivate teacher
 
 module.exports = router;
