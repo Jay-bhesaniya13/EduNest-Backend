@@ -37,6 +37,11 @@ app.use("/api/quiz", quizRoutes);
 app.use("/api/content", contentRoutes);
 
 
+// Default route for handling undefined routes
+app.use((req, res) => {
+  res.status(404).json({ message: "Welcome to EduNest! The route you are looking for does not exist." });
+});
+
 
 // Connect to MongoDB to local
 
