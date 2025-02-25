@@ -135,7 +135,7 @@ exports.verifyOTP = async (req, res) => {
     } catch (rewardError) {
       console.error("Reward creation failed:", rewardError.message);
       await Student.findByIdAndDelete(newStudent._id); // Rollback student creation
-      return res.status(500).json({ error: "Reward creation failed. Please try again." });
+      return res.status(500).json({ error: "Reward creation failed. Please try again.   "+ rewardError.message });
     }
 
   } catch (error) {
