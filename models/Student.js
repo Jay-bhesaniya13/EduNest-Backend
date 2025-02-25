@@ -18,7 +18,7 @@ const studentSchema = new mongoose.Schema({
   modules_enrolled: { type: Number, default: 0 },
 
   // 🔹 Reward System
-  rewardPoint: { 
+  rewardPoints: { 
     type: Number, 
     default: config.REWARD_POINT_ON_ACCOUNT_CREATION || 50 // Fallback value
   },

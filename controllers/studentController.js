@@ -105,7 +105,7 @@ exports.verifyOTP = async (req, res) => {
       skills: tempData.skills,
       city: tempData.city,
       isVerified: true,
-      rewardPoint: REWARD_POINT_ON_ACCOUNT_CREATION
+      rewardPoints: REWARD_POINT_ON_ACCOUNT_CREATION
     });
 
     try {
