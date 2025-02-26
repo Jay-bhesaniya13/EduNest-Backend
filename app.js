@@ -25,8 +25,8 @@ const PORT = process.env.PORT || 5000;
 app.use(express.json());
 
 
-//  for monthly bonus automatic
-require("./schedulers/monthlyBonus");
+// //  for monthly bonus automatic
+// require("./schedulers/monthlyBonus");
 
 
 // default
