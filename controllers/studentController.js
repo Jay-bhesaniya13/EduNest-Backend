@@ -8,7 +8,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const TemporaryOTP = require("../models/TemporaryOTP")
-
+const sendEmail = require("../utils/sendEmail");
 
 // 🔹 Function to generate a 6-digit OTP
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000);
@@ -117,7 +117,7 @@ exports.verifyOTP = async (req, res) => {
       const newReward = new Reward({
         student: newStudent._id,
         pointsChanged: [rewardPoints], // Ensure at least one value in array
-        reasons: ["Account Verified"],
+        reasons: ["Account Creation Bonus Point"],
         timestamps: [Date.now()]
       });
 
@@ -171,7 +171,7 @@ exports.resendOTP = async (req, res) => {
       text: `Your new OTP is: ${newOTP}. This OTP will expire in 10 minutes.`
     };
 
-    await transporter.sendMail(mailOptions);
+    await sendMail(mailOptions);
 
     return res.status(200).json({ message: "New OTP sent to your email." });
 
@@ -217,28 +217,7 @@ exports.loginStudent = async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 };
-
-//  // Controller to modify reward points (Example of adding points or applying penalty)
-// exports.modifyReward = async (req, res) => {
-//   try {
-//     const { studentId, pointsChange, reason } = req.body;
-
-//     if (!studentId || pointsChange === undefined || !reason) {
-//       return res.status(400).json({ error: "Missing required fields" });
-//     }
-
-//     // Add reward points and create history
-//     const newReward = await createReward(studentId, pointsChange, reason);
-
-//     res.status(200).json({
-//       message: "Reward points updated successfully.",
-//       rewardHistory: newReward
-//     });
-//   } catch (error) {
-//     res.status(500).json({ error: error.message });
-//   }
-// };
-
+ 
 // Controller to get all students
 exports.getAllStudents = async (req, res) => {
   try {

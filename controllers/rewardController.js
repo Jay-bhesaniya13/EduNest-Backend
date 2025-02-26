@@ -1,90 +1,207 @@
 const Reward = require("../models/Reward");
-const User = require("../models/User");
+const Student = require("../models/Student");
+const Client = require("../models/Client");
 
-// Function to create a reward history entry
-exports.createReward = async (userId, pointsChange, reason) => {
+const jwt = require("jsonwebtoken");
+const dotenv = require("dotenv");
+const sendEmail = require("../utils/sendEmail");
+
+dotenv.config();
+const SECRET_KEY = process.env.JWT_SECRET;
+
+// for authenticate client
+exports.authenticateClient = async (req, res, next) => {
+  const token = req.header("Authorization");
+ 
+  if (!token) {
+    return res.status(401).json({ error: "Access denied. No token provided." });
+  }
+
   try {
-    const user = await User.findById(userId);
-
-    if (!user) {
-      throw new Error("User not found");
+    const decoded = jwt.verify(token.replace("Bearer ", ""), SECRET_KEY);
+    const client = await Client.findById(decoded.id);
+     if (!client) {
+      return res.status(403).json({ error: "Unauthorized. Client not found.bbvj" ,jwt_id:decoded.id,token });
     }
-
-    // Update the user's current reward points
-    user.rewardPoint += pointsChange;
-    await user.save();
-
-    // Create a new record in the Reward schema for this change
-    const newReward = new Reward({
-      user: userId,
-      pointsChanged: [pointsChange],
-      reasons: [reason]
-    });
-
-    await newReward.save();
-
-    return newReward;  // Return the created reward history entry
+     req.Client = client; // Attach the authenticated client to the request
+    next();
   } catch (error) {
-    throw new Error(error.message);
+    return res.status(401).json({ error: "Invalid token" });
+  }
+};
+
+// for authenticate student
+exports.authenticateStudent = (req, res, next) => {
+  const token = req.header("Authorization");
+
+  if (!token) {
+    return res.status(401).json({ error: "Access denied. No token provided." });
+  }
+
+  try {
+    const decoded = jwt.verify(token.replace("Bearer ", ""), SECRET_KEY);
+    console.log("Decoded Token:", decoded); // ✅ Debug log
+    req.Student = decoded; // Ensure this is being set
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: "Invalid token" });
   }
 };
 
 
-exports.getRewardByUserId = async (req, res) => {
-  try {
-    const { userId} = req.body;
 
-    if (userId  === undefined  ) {
-      return res.status(400).json({ error: "Missing required fields" });
+// Get reward history (self-Student only)
+exports.getRewardHistoryByStudentId = async (req, res) => {
+  try {
+    const studentId = req.student.id; // Authenticated Student ID
+
+    const rewardHistory = await Reward.findOne({ student: studentId });
+
+    if (!rewardHistory) {
+      return res.status(404).json({ error: "No reward history found." });
     }
+
+    res.status(200).json({ rewardHistory });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Increment reward points
+exports.incrementRewardPoints = async (req, res) => {
+  try {
+    const { studentId, pointsChange, reason } = req.body;
+ 
+    if (!studentId) return res.status(401).json({ error: "Unauthorized. Invalid token." });
 
      
+    if (!pointsChange || pointsChange <= 0 )  {
+      return res.status(400).json({ error: "Invalid points or missing" });
+    }
+    if(!reason)
+    {
+      return res.status(400).json({ error: "reason is missing " });
+    }
+
+    const student = await Student.findById(studentId);
+    if (!student) return res.status(404).json({ error: "Student not found" });
+
+    student.rewardPoints += pointsChange;
+    await student.save();
+
+    let rewardEntry = await Reward.findOne({ student: studentId });
+
+    if (rewardEntry) {
+      rewardEntry.pointsChanged.push(pointsChange);
+      rewardEntry.reasons.push(reason);
+      rewardEntry.timestamps.push(new Date());
+    } else {
+      rewardEntry = new Reward({
+        student: StudentId,
+        pointsChanged: [pointsChange],
+        reasons: [reason],
+        timestamps: [new Date()],
+      });
+    }
+
+    await rewardEntry.save();
+
+    // 📨 Send Email Notification
+    const emailContent = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd;">
+        <h2 style="color: #28a745;">🎉 Points Credited!</h2>
+        <p>Dear <strong>${student.name}</strong>,</p>
+        <p>Congratulations! You have received <strong style="color: green;">+${pointsChange} points</strong> for:</p>
+        <blockquote style="border-left: 4px solid #28a745; padding-left: 10px; background-color:rgb(178, 239, 193)">${reason}</blockquote>
+        <p>Your current balance: <strong>${student.rewardPoints} points</strong>.</p>
+        <p>Keep up the great work! 🚀</p>
+      </div>
+    `;
+
+    await sendEmail(student.email, "🎉 Points Credited to Your Account!", emailContent);
+
     res.status(200).json({
-      message: "Reward points updated successfully.",
-      rewardHistory: newReward
+      message: "Points incremented successfully and email sent!",
+      rewardHistory: rewardEntry,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
- 
 
-// Controller to add or subtract reward points for a user
-exports.modifyReward = async (req, res) => {
+
+// Deduct reward points (Penalty)
+exports.penaltyRewardPoints = async (req, res) => {
   try {
-    const { userId, pointsChange, reason } = req.body;
+    const { studentId, pointsChange, reason } = req.body;
+ 
+    if (!pointsChange || pointsChange <= 0 )  {
+      return res.status(400).json({ error: "Invalid points or missing" });
+    }
+    if(!reason)
+    {
+      return res.status(400).json({ error: "reason is missing " });
+    }
+    const student = await Student.findById(studentId);
+    if (!student) return res.status(404).json({ error: "Student not found" });
 
-    if (!userId || pointsChange === undefined || !reason) {
-      return res.status(400).json({ error: "Missing required fields" });
+    student.rewardPoints -= pointsChange;
+    await student.save();
+
+    let rewardEntry = await Reward.findOne({ student: studentId });
+
+    if (rewardEntry) {
+      rewardEntry.pointsChanged.push(-pointsChange);
+      rewardEntry.reasons.push(reason);
+      rewardEntry.timestamps.push(new Date());
+    } else {
+      rewardEntry = new Reward({
+        student: studentId,
+        pointsChanged: [-pointsChange],
+        reasons: [reason],
+        timestamps: [new Date()],
+      });
     }
 
-    // Add reward points and create history
-    const newReward = await createReward(userId, pointsChange, reason);
+    await rewardEntry.save();
+
+    // 📨 Send Email Notification
+    const emailContent = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd;">
+        <h2 style="color: #dc3545;">⚠️ Points Deducted!</h2>
+        <p>Dear <strong>${student.name}</strong>,</p>
+        <p>Unfortunately, <strong style="color: red;">-${pointsChange} points</strong> were deducted from your account for:</p>
+        <blockquote style="border-left: 4px solid #dc3545; padding-left: 10px;background-color:rgb(231, 213, 215)">${reason}</blockquote>
+        <p>Your current balance: <strong>${student.rewardPoints} points</strong>.</p>
+        <p>We encourage you to stay on track and earn more rewards! 🌟</p>
+      </div>
+    `;
+
+    await sendEmail(student.email, "⚠️ Points Deducted from Your Account!", emailContent);
 
     res.status(200).json({
-      message: "Reward points updated successfully.",
-      rewardHistory: newReward
+      message: "Points deducted successfully and email sent!",
+      rewardHistory: rewardEntry,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// Controller to get reward history for a user
-exports.getRewardHistory = async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const rewards = await Reward.find({ user: userId });
 
-    if (rewards.length === 0) {
-      return res.status(404).json({ error: "No reward history found for this user" });
+// Delete reward history (self-Student only)
+exports.deleteReward = async (req, res) => {
+  try {
+    const studentId = req.student.id;
+
+    const rewardEntry = await Reward.findOneAndDelete({ student: studentId });
+
+    if (!rewardEntry) {
+      return res.status(404).json({ error: "No reward history found." });
     }
 
-    res.status(200).json(rewards);
+    res.status(200).json({ message: "Reward history deleted successfully." });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
-
-
- 

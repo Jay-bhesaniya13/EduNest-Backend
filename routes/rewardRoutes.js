@@ -1,19 +1,23 @@
 const express = require("express");
 const {
-  createReward,
-  getAllRewards,
-  getRewardByUserId,
+  authenticateStudent,
+  getRewardHistoryByStudentId,
+
+  authenticateClient,
   incrementRewardPoints,
   penaltyRewardPoints,
+
   deleteReward,
 } = require("../controllers/rewardController");
 
 const router = express.Router();
 
-router.post("/", createReward);
-router.get("/", getAllRewards);
-router.get("/:userId", getRewardByUserId);
-router.put("/:userId/increment", incrementRewardPoints); // Increment points
-router.put("/:userId/penalty", penaltyRewardPoints);    // Apply penalty
+ 
+router.get("/", authenticateStudent, getRewardHistoryByStudentId);
+
+router.put("/increment", authenticateClient, incrementRewardPoints);
+router.put("/penalty", authenticateClient, penaltyRewardPoints);
+
+router.delete("/", authenticateClient, deleteReward);
 
 module.exports = router;

@@ -10,9 +10,11 @@ const teacherRoutes = require("./routes/teacherRoutes");
 const questionRoutes = require("./routes/questionRoutes");
 const enrollmentRoutes = require("./routes/enrollmentRoutes");
 const studentRoutes = require("./routes/studentRoutes");
+const rewardRoutes= require("./routes/rewardRoutes")
 const adminRoutes = require("./routes/adminRoutes");
 const contentRoutes = require("./routes/contentRoutes");
 const quizRoutes = require("./routes/quizRoutes");
+const clientRoutes=require("./routes/clientroutes")
 
 const app = express();
 const Mongo_URI=process.env.MONGO_URI;
@@ -28,6 +30,8 @@ app.get("/", (req, res) => {
 
 // Routes 
 app.use("/api/student", studentRoutes);
+app.use("/api/reward", rewardRoutes);
+app.use("/api/client",clientRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/teacher", teacherRoutes);
 app.use("/api/module", moduleRoutes);
