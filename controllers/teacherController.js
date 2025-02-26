@@ -2,61 +2,61 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Teacher = require("../models/Teacher");
 const TempTeacher = require("../models/TempTeacher");
- 
-function otpGenerator(){
-  return  Math.floor(100000 + Math.random() * 900000);
-}
+const sendEmail = require("../utils/sendEmail");
 
 require("dotenv").config();
+
 const jwtSecret = process.env.JWT_SECRET;
 
-// **1. Register Teacher (Temporary Storage)**
+// **1. Generate OTP**
+function otpGenerator() {
+  return Math.floor(100000 + Math.random() * 900000);
+}
+
+ // **2. Register Teacher (Temporary Storage)**
 exports.registerTeacher = async (req, res) => {
   try {
     const { name, email, password, contactNumber, profilepicURL, about, areas_of_expertise, city } = req.body;
 
-    // Validate required fields
     if (!name || !email || !password || !profilepicURL) {
       return res.status(400).json({ error: "Name, Email, Password, and Profile Picture are required." });
     }
 
-    // Check if the teacher already exists in Temp or Main DB
     const existingTeacher = await Teacher.findOne({ email });
     const existingTempTeacher = await TempTeacher.findOne({ email });
 
     if (existingTeacher) {
-      return res.status(400).json({ error: "Teacher already registered." });
+      return res.status(400).json({ error: "Teacher already registered with this email." });
     }
-
     if (existingTempTeacher) {
-      return res.status(400).json({ error: "OTP already sent. Please verify OTP." });
+      return res.status(400).json({ error: "OTP already sent. Please check & verify OTP." });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Generate OTP
     const otp = otpGenerator();
-    const otpExpiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // OTP expires in 2 hours
+    const otpExpiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
 
-    // Save in TempTeacher collection
-    const tempTeacher = new TempTeacher({
-      name,
-      email,
-      password: hashedPassword,
-      contactNumber,
-      profilepicURL,
-      about,
-      areas_of_expertise,
-      city,
-      otp,
-      otpExpiresAt
+    const tempTeacher = new TempTeacher({ 
+      name, email, password: hashedPassword, contactNumber, profilepicURL, about, areas_of_expertise, city, otp, otpExpiresAt 
     });
 
     await tempTeacher.save();
 
-    // TODO: Send OTP via Email/SMS
-    console.log(`OTP for ${email}: ${otp}`);
+    // Send OTP Email
+    const emailContent = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 400px; margin: auto; background-color: #f9f9f9;">
+        <h2 style="color: #2c3e50; text-align: center;">EduNest Account Verification</h2>
+        <p style="font-size: 16px; text-align: center;">Your One-Time Password (OTP) for registration is:</p>
+        <div style="font-size: 22px; font-weight: bold; text-align: center; padding: 10px; background-color: #2ecc71; color: white; border-radius: 5px;">
+          ${otp}
+        </div>
+        <p style="font-size: 14px; text-align: center; color: #e74c3c; margin-top: 10px;">This OTP will expire in 2 hours.</p>
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+        <p style="font-size: 12px; text-align: center; color: #7f8c8d;">If you didn't request this, please ignore this email.</p>
+      </div>
+    `;
+
+    await sendEmail(email, "Verify Your EduNest Account - OTP", emailContent);
 
     res.status(200).json({ message: "OTP sent to your email. Verify to complete registration." });
 
@@ -65,48 +65,58 @@ exports.registerTeacher = async (req, res) => {
   }
 };
 
-// **2. Verify OTP & Move Data to Main Teacher Collection**
+
+ // **3. Verify OTP & Move Data to Teacher Collection**
 exports.verifyTeacherOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
-    // Validate input
     if (!email || !otp) {
       return res.status(400).json({ error: "Email and OTP are required." });
     }
 
-    // Find temp record
     const tempTeacher = await TempTeacher.findOne({ email });
-
-    if (!tempTeacher) {
-      return res.status(400).json({ error: "OTP expired or invalid. Please register again." });
+    if (!tempTeacher || tempTeacher.otp !== otp) {
+      return res.status(400).json({ error: "Invalid OTP or expired. Please register again." });
     }
 
-    // Check if OTP matches
-    if (tempTeacher.otp !== otp) {
-      return res.status(400).json({ error: "Incorrect OTP. Please try again." });
-    }
-
-    // Move data to Teacher collection
-    const newTeacher = new Teacher({
-      name: tempTeacher.name,
-      email: tempTeacher.email,
-      password: tempTeacher.password,
-      contactNumber: tempTeacher.contactNumber,
-      profilepicURL: tempTeacher.profilepicURL,
-      about: tempTeacher.about,
-      areas_of_expertise: tempTeacher.areas_of_expertise,
-      city: tempTeacher.city,
-      join_date: new Date(),
+    const newTeacher = new Teacher({ 
+      name: tempTeacher.name, 
+      email: tempTeacher.email, 
+      password: tempTeacher.password, 
+      contactNumber: tempTeacher.contactNumber, 
+      profilepicURL: tempTeacher.profilepicURL, 
+      about: tempTeacher.about, 
+      areas_of_expertise: tempTeacher.areas_of_expertise, 
+      city: tempTeacher.city, 
+      join_date: new Date() 
     });
 
     await newTeacher.save();
-
-    // Delete from TempTeacher collection
     await TempTeacher.deleteOne({ email });
 
-    // Generate JWT Token
     const token = jwt.sign({ id: newTeacher._id, email: newTeacher.email }, jwtSecret);
+
+    // Send Welcome Email
+    const emailContent = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 500px; margin: auto; background-color: #f9f9f9;">
+        <h2 style="color: #2c3e50; text-align: center;">🎉 Welcome to EduNest! 🎉</h2>
+        <p style="font-size: 16px; text-align: center;">Dear ${tempTeacher.name},</p>
+        <p style="font-size: 14px; text-align: center;">Congratulations! Your teacher account has been successfully created on <strong>EduNest</strong>.</p>
+        <div style="text-align: center; margin: 20px 0;">
+          <img src="https://your-logo-url.com/logo.png" alt="EduNest Logo" style="max-width: 150px;">
+        </div>
+        <p style="font-size: 14px; text-align: center;">Now you can create courses, interact with students, and share your expertise with the world. 🚀</p>
+        <p style="font-size: 14px; text-align: center;">Click below to log in:</p>
+        <div style="text-align: center; margin-top: 10px;">
+          <a href="https://edunest.com/login" style="display: inline-block; padding: 10px 20px; background-color: #2ecc71; color: white; text-decoration: none; border-radius: 5px; font-size: 16px;">Login to EduNest</a>
+        </div>
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+        <p style="font-size: 12px; text-align: center; color: #7f8c8d;">If you didn't create this account, please contact our support team.</p>
+      </div>
+    `;
+
+    await sendEmail(email, "🎉 Welcome to EduNest! Your Account is Ready", emailContent);
 
     res.status(201).json({ message: "Teacher registered successfully.", token });
 
@@ -115,30 +125,37 @@ exports.verifyTeacherOTP = async (req, res) => {
   }
 };
 
-// **3. Resend OTP**
+
+ // **4. Resend OTP**
 exports.resendTeacherOTP = async (req, res) => {
   try {
     const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ error: "Email is required." });
-    }
-
     const existingTempTeacher = await TempTeacher.findOne({ email });
 
     if (!existingTempTeacher) {
       return res.status(400).json({ error: "No pending OTP request found. Please register first." });
     }
 
-    // Generate new OTP
-    const newOTP = otpGenerator.generate(6, { digits: true, alphabets: false, upperCase: false });
+    const newOTP = otpGenerator();
     existingTempTeacher.otp = newOTP;
-    existingTempTeacher.otpExpiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // Reset expiry
-
+    existingTempTeacher.otpExpiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
     await existingTempTeacher.save();
 
-    // TODO: Send OTP via Email/SMS
-    console.log(`New OTP for ${email}: ${newOTP}`);
+    // Send New OTP Email
+    const emailContent = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 400px; margin: auto; background-color: #f9f9f9;">
+        <h2 style="color: #2c3e50; text-align: center;">EduNest Account Verification</h2>
+        <p style="font-size: 16px; text-align: center;">Your new OTP for verification is:</p>
+        <div style="font-size: 22px; font-weight: bold; text-align: center; padding: 10px; background-color: #3498db; color: white; border-radius: 5px;">
+          ${newOTP}
+        </div>
+        <p style="font-size: 14px; text-align: center; color: #e74c3c; margin-top: 10px;">This OTP will expire in 2 hours.</p>
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+        <p style="font-size: 12px; text-align: center; color: #7f8c8d;">If you didn't request this, please ignore this email.</p>
+      </div>
+    `;
+
+    await sendEmail(email, "Resend OTP - EduNest Account Verification", emailContent);
 
     res.status(200).json({ message: "New OTP sent. Please verify." });
 
@@ -147,27 +164,18 @@ exports.resendTeacherOTP = async (req, res) => {
   }
 };
 
-// **4. Login Teacher**
+
+// **5. Login Teacher**
 exports.loginTeacher = async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and Password are required." });
-    }
-
     const teacher = await Teacher.findOne({ email, isActive: true });
-    if (!teacher) {
-      return res.status(404).json({ error: "Teacher not found or inactive." });
-    }
 
-    const isPasswordValid = await bcrypt.compare(password, teacher.password);
-    if (!isPasswordValid) {
+    if (!teacher || !(await bcrypt.compare(password, teacher.password))) {
       return res.status(401).json({ error: "Invalid credentials." });
     }
 
     const token = jwt.sign({ id: teacher._id, email: teacher.email }, jwtSecret);
-
     res.json({ message: "Login successful.", token });
 
   } catch (error) {
@@ -175,9 +183,56 @@ exports.loginTeacher = async (req, res) => {
   }
 };
 
+// **6. Get Teacher's Own Profile**
+exports.getTeacherProfile = async (req, res) => {
+  try {
+    const teacher = await Teacher.findById(req.teacher.id);
+    if (!teacher) {
+      return res.status(404).json({ error: "Teacher not found." });
+    }
+    res.status(200).json(teacher);
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// **7. Update Teacher's Own Profile**
+exports.updateTeacherProfile = async (req, res) => {
+  try {
+    const updatedData = req.body;
+    const teacher = await Teacher.findByIdAndUpdate(req.teacher.id, updatedData, { new: true });
+
+    if (!teacher) {
+      return res.status(404).json({ error: "Teacher not found." });
+    }
+
+    res.status(200).json(teacher);
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// **8. Deactivate Teacher's Own Account**
+exports.deactivateTeacher = async (req, res) => {
+  try {
+    const teacher = await Teacher.findById(req.teacher.id);
+    if (!teacher || !teacher.isActive) {
+      return res.status(400).json({ error: "Teacher is already deactivated or not found." });
+    }
+
+    teacher.isActive = false;
+    await teacher.save();
+    res.status(200).json({ message: "Teacher deactivated successfully." });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 
 
-// Controller to get all users
+// ✅ **Get All Teachers (Admin Only)**
 exports.getAllTeachers = async (req, res) => {
   try {
     const teachers = await Teacher.find();
@@ -186,95 +241,3 @@ exports.getAllTeachers = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
-// Controller to get a single user by ID
-exports.getTeacherById = async (req, res) => {
-  try {
-    const { teacherId } = req.params;
-    const teacher = await Teacher.findById(teacherId);
-
-    if (!teacher) {
-      return res.status(404).json({ error: "teacher not found" });
-    }
-
-    res.status(200).json(teacher);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Controller to update a user
-exports.updateTeacher = async (req, res) => {
-  try {
-    const { teacherId } = req.params;
-    const updatedData = req.body;
-
-    const teacher = await Teacher.findByIdAndUpdate(teacherId, updatedData, { new: true });
-
-    if (!teacher) {
-      return res.status(404).json({ error: "Teacher not found" });
-    }
-
-    res.status(200).json(teacher);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Controller to delete a Teacher (set `isActive` to false)
-exports.deleteTeacher = async (req, res) => {
-  try {
-    const { teacherId } = req.params;
-
-    // Find the Teacher by ID
-    const teacher = await Teacher.findById(teacherId);
-
-    if (!teacher) {
-      return res.status(404).json({ error: "Teacher not found" });
-    }
-
-    if (!teacher.isActive) {
-      return res.status(400).json({ message: "Teacher is already deactivated." });
-    }
-
-    // Deactivate the teacher
-    teacher.isActive = false;
-    await teacher.save();
-
-    res.status(200).json({
-      message: "Teacher deactivated successfully.",
-      teacher: teacher
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-
-// // Get all courses for a specific teacher by teacherId
-// exports.getAllCoursesForTeacher = async (req, res) => {
-//   try {
-//     const { teacherId } = req.params;
-
-//     // Validate teacherId format
-//     if (!mongoose.Types.ObjectId.isValid(teacherId)) {
-//       return res.status(400).json({ message: "Invalid teacherId" });
-//     }
-
-//     const courses = await Course.find({ teacherId })
-//       .populate("modules")
-//       .sort({ createdAt: -1 });
-
-//     if (!courses || courses.length === 0) {
-//       return res.status(404).json({ message: "No courses found for this teacher" });
-//     }
-
-//     res.status(200).json({ success: true, courses });
-//   }
-//    catch (error) {
-//     console.error("Error fetching courses:", error);
-//     res.status(500).json({ message: "Server error" });
-//   }
-
-// };
-

@@ -1,4 +1,4 @@
-const { admin, db } = require('./config/firebase'); // No need for bucket
+const { admin, db } = require('./firebase'); // No need for bucket
 const path = require('path');
 const fs = require('fs');
 

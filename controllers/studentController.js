@@ -217,26 +217,13 @@ exports.loginStudent = async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 };
- 
-// Controller to get all students
-exports.getAllStudents = async (req, res) => {
-  try {
-    const students = await Student.find();
-    res.status(200).json(students);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
 
-// Controller to get a single student by ID
-exports.getStudentById = async (req, res) => {
-  try {
-    const { studentId } = req.params;
-    const student = await Student.findById(studentId);
 
-    if (!student) {
-      return res.status(404).json({ error: "Student not found" });
-    }
+// ✅ **Get Authenticated Student Profile**
+exports.getStudentProfile = async (req, res) => {
+  try {
+    const student = await Student.findById(req.studentId);
+    if (!student) return res.status(404).json({ error: "Student not found" });
 
     res.status(200).json(student);
   } catch (error) {
@@ -244,37 +231,10 @@ exports.getStudentById = async (req, res) => {
   }
 };
 
-// Controller to update a student
-exports.updateStudent = async (req, res) => {
+ // ✅ **Update Authenticated Student Profile**
+exports.updateStudentProfile = async (req, res) => {
   try {
-    const { studentId } = req.params;
-    const { name, email, contactNumber, password, newEmail } = req.body;
-
-    // Find the student by ID
-    const student = await Student.findById(studentId);
-    if (!student) {
-      return res.status(404).json({ error: "Student not found" });
-    }
-
-    // If newEmail is provided, check if it matches the student's current email
-    if (newEmail) {
-      if (student.email !== email) {
-        return res.status(400).json({ error: "Old email does not match the provided email" });
-      }
-      student.email = newEmail;
-    } else {
-      // If no newEmail provided, ensure the email matches the student's current email
-      if (student.email !== email) {
-        return res.status(400).json({ error: "Email does not match the student's current email" });
-      }
-    }
-
-    // Prepare the data to be updated
-    const updatedData = { name, email: student.email, contactNumber, password };
-
-    // Update the student data
-    const updatedStudent = await Student.findByIdAndUpdate(studentId, updatedData, { new: true });
-
+    const updatedStudent = await Student.findByIdAndUpdate(req.studentId, req.body, { new: true });
     res.status(200).json(updatedStudent);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -282,9 +242,8 @@ exports.updateStudent = async (req, res) => {
 };
 
 
-
 // Controller to delete a student (set `isActive` to false)
-exports.deleteStudent = async (req, res) => {
+exports.deactivateStudent = async (req, res) => {
   try {
     const { studentId } = req.params;
 
@@ -307,6 +266,17 @@ exports.deleteStudent = async (req, res) => {
       message: "Student deactivated successfully.",
       student: student
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
+// ✅ **Get All Students (Admin Only)**
+exports.getAllStudents = async (req, res) => {
+  try {
+    const students = await Student.find();
+    res.status(200).json(students);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

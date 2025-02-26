@@ -1,5 +1,7 @@
 const mongoose = require("mongoose");
-const config = require("./config"); // Import config or use environment variables
+require('dotenv').config(); 
+const REWARD_POINT_ON_ACCOUNT_CREATION= process.env.REWARD_POINT_ON_ACCOUNT_CREATION ;
+ // Import config or use environment variables
 
 const studentSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -20,7 +22,7 @@ const studentSchema = new mongoose.Schema({
   // 🔹 Reward System
   rewardPoints: { 
     type: Number, 
-    default: config.REWARD_POINT_ON_ACCOUNT_CREATION || 50 // Fallback value
+    default: REWARD_POINT_ON_ACCOUNT_CREATION// Fallback value
   },
 
   // 🔹 OTP for Verification

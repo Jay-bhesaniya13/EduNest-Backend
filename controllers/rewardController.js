@@ -1,52 +1,12 @@
 const Reward = require("../models/Reward");
 const Student = require("../models/Student");
 const Client = require("../models/Client");
-
-const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
-const sendEmail = require("../utils/sendEmail");
-
 dotenv.config();
 const SECRET_KEY = process.env.JWT_SECRET;
+const jwt = require("jsonwebtoken");
 
-// for authenticate client
-exports.authenticateClient = async (req, res, next) => {
-  const token = req.header("Authorization");
- 
-  if (!token) {
-    return res.status(401).json({ error: "Access denied. No token provided." });
-  }
-
-  try {
-    const decoded = jwt.verify(token.replace("Bearer ", ""), SECRET_KEY);
-    const client = await Client.findById(decoded.id);
-     if (!client) {
-      return res.status(403).json({ error: "Unauthorized. Client not found.bbvj" ,jwt_id:decoded.id,token });
-    }
-     req.Client = client; // Attach the authenticated client to the request
-    next();
-  } catch (error) {
-    return res.status(401).json({ error: "Invalid token" });
-  }
-};
-
-// for authenticate student
-exports.authenticateStudent = (req, res, next) => {
-  const token = req.header("Authorization");
-
-  if (!token) {
-    return res.status(401).json({ error: "Access denied. No token provided." });
-  }
-
-  try {
-    const decoded = jwt.verify(token.replace("Bearer ", ""), SECRET_KEY);
-    console.log("Decoded Token:", decoded); // ✅ Debug log
-    req.Student = decoded; // Ensure this is being set
-    next();
-  } catch (error) {
-    return res.status(401).json({ error: "Invalid token" });
-  }
-};
+const sendEmail = require("../utils/sendEmail");
 
 
 

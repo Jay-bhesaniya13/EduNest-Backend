@@ -8,15 +8,16 @@ const {
   updateQuiz,
   deleteQuiz
 } = require("../controllers/quizController");
+const { authenticateAdmin } = require("../controllers/authController");
 
 const router = express.Router();
 
-router.post("/create", createQuiz);
-router.post("/:quizId/add-question/:questionId", addQuestionToQuiz);
-router.delete("/:quizId/remove-question/:questionId", removeQuestionFromQuiz);
-router.get("/", getAllQuizzes);
-router.get("/:quizId", getQuizById);
-router.put("/:quizId", updateQuiz);
-router.delete("/:quizId", deleteQuiz);
+router.post("/create", authenticateAdmin, createQuiz);
+router.post("/:quizId/add-question/:questionId", authenticateAdmin, addQuestionToQuiz);
+router.delete("/:quizId/remove-question/:questionId", authenticateAdmin, removeQuestionFromQuiz);
+router.get("/", authenticateAdmin, getAllQuizzes);
+router.get("/:quizId", authenticateAdmin, getQuizById);
+router.put("/:quizId", authenticateAdmin, updateQuiz);
+router.delete("/:quizId", authenticateAdmin, deleteQuiz);
 
 module.exports = router;

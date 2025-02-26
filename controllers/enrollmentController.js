@@ -5,7 +5,9 @@ const BalanceHistory = require("../models/BalanceHistory");
 const Teacher = require("../models/Teacher");
 const Transaction = require("../models/Transaction");
 const AccountIncome = require("../models/AccountIncome");
-const { COURSE_DISCOUNT_PERCENTAGE } = require("../models/config");
+const dotenv = require("dotenv");
+dotenv.config();
+const { COURSE_DISCOUNT_PERCENTAGE } = process.env.COURSE_DISCOUNT_PERCENTAGE;
 
 // Enroll student in all modules of a course with discounted price
 exports.coursePurchaseEnrollment = async (req, res) => {

@@ -1,15 +1,19 @@
 const express = require("express");
 const {
   loginStudent,
-   registerStudent,
+  registerStudent,
   verifyOTP,
   resendOTP,
-  getAllStudents,
-  getStudentById,
-  updateStudent,
-  deleteStudent,
+
+  getStudentProfile,
+  updateStudentProfile,  
+  deactivateStudent,
+  getAllStudents
 } = require("../controllers/studentController");
 
+const { authenticateStudent } = require("../controllers/authController");
+
+ 
 const router = express.Router();
 
 router.post("/login", loginStudent);
@@ -18,9 +22,12 @@ router.post("/register", registerStudent);  // Send OTP & Register
 router.post("/verify-otp", verifyOTP);      // Verify OTP
 router.post("/resend-otp", resendOTP);      // Resend OTP if expired
 
-router.get("/", getAllStudents);
-router.get("/:studentId", getStudentById);
-router.put("/:studentId", updateStudent);
-router.delete("/:studentId", deleteStudent);
+router.get("/profile",authenticateStudent, getStudentProfile);
+router.put("/profile", authenticateStudent, updateStudentProfile);
+router.delete("/deactivate",authenticateStudent, deactivateStudent);
+ 
+// to retrive all students by admin ( later on add authorization for admin )
+router.get("/admin13", getAllStudents);
+
 
 module.exports = router;

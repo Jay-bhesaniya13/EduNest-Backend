@@ -1,17 +1,16 @@
 const Quiz = require("../models/Quiz");
 const Question = require("../models/Question");
 
-// ✅ Create a new quiz
+// ✅ Create a new quiz (Admin only)
 exports.createQuiz = async (req, res) => {
   try {
-    const { adminId, questions, topic, description, duration, startAt, rewardPoints } = req.body;
+    const { questions, topic, description, duration, startAt, rewardPoints } = req.body;
 
-    // Fetch questions to calculate total points
     const questionDocs = await Question.find({ _id: { $in: questions } });
     const totalPoints = questionDocs.reduce((sum, q) => sum + (q.point || 1), 0);
 
     const newQuiz = new Quiz({
-      admin: adminId,
+      admin: req.admin._id, // Assigning authenticated admin
       questions,
       topic,
       description,
@@ -28,13 +27,16 @@ exports.createQuiz = async (req, res) => {
   }
 };
 
-// ✅ Add a question to a quiz
+// ✅ Add a question to a quiz (Only quiz creator can add)
 exports.addQuestionToQuiz = async (req, res) => {
   try {
     const { quizId, questionId } = req.params;
 
     const quiz = await Quiz.findById(quizId);
     if (!quiz) return res.status(404).json({ message: "Quiz not found" });
+
+    if (quiz.admin.toString() !== req.admin._id.toString())
+      return res.status(403).json({ message: "Unauthorized. You are not the quiz owner." });
 
     if (quiz.questions.includes(questionId))
       return res.status(400).json({ message: "Question already exists in this quiz" });
@@ -43,7 +45,7 @@ exports.addQuestionToQuiz = async (req, res) => {
     if (!question) return res.status(404).json({ message: "Question not found" });
 
     quiz.questions.push(questionId);
-    quiz.totalPoints += question.point || 1; // Update total points
+    quiz.totalPoints += question.point || 1;
     await quiz.save();
 
     res.status(200).json({ message: "Question added successfully", quiz });
@@ -51,14 +53,16 @@ exports.addQuestionToQuiz = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
-// ✅ Remove a question from a quiz (ensuring it's not the last question)
+// ✅ Remove a question (Only quiz creator can remove)
 exports.removeQuestionFromQuiz = async (req, res) => {
   try {
     const { quizId, questionId } = req.params;
 
     const quiz = await Quiz.findById(quizId);
     if (!quiz) return res.status(404).json({ message: "Quiz not found" });
+
+    if (quiz.admin.toString() !== req.admin._id.toString())
+      return res.status(403).json({ message: "Unauthorized. You are not the quiz owner." });
 
     if (quiz.questions.length <= 1)
       return res.status(400).json({ message: "Cannot remove the last question from the quiz" });
@@ -69,7 +73,7 @@ exports.removeQuestionFromQuiz = async (req, res) => {
 
     const question = await Question.findById(questionId);
     quiz.questions.splice(questionIndex, 1);
-    quiz.totalPoints -= question?.point || 1; // Update total points
+    quiz.totalPoints -= question?.point || 1;
     await quiz.save();
 
     res.status(200).json({ message: "Question removed successfully", quiz });
@@ -78,21 +82,21 @@ exports.removeQuestionFromQuiz = async (req, res) => {
   }
 };
 
-// ✅ Get all quizzes
+// ✅ Get all quizzes (Only authenticated admin)
 exports.getAllQuizzes = async (req, res) => {
   try {
-    const quizzes = await Quiz.find();
+    const quizzes = await Quiz.find({ admin: req.admin._id });
     res.status(200).json(quizzes);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// ✅ Get a specific quiz by ID
+// ✅ Get a quiz by ID (Only if admin owns it)
 exports.getQuizById = async (req, res) => {
   try {
-    const quiz = await Quiz.findById(req.params.quizId).populate("questions");
-    if (!quiz) return res.status(404).json({ message: "Quiz not found" });
+    const quiz = await Quiz.findOne({ _id: req.params.quizId, admin: req.admin._id }).populate("questions");
+    if (!quiz) return res.status(404).json({ message: "Quiz not found or unauthorized." });
 
     res.status(200).json(quiz);
   } catch (error) {
@@ -100,23 +104,33 @@ exports.getQuizById = async (req, res) => {
   }
 };
 
-// ✅ Update quiz details
+
+// ✅ Update a quiz (Only quiz creator can update)
 exports.updateQuiz = async (req, res) => {
   try {
-    const updatedQuiz = await Quiz.findByIdAndUpdate(req.params.quizId, req.body, { new: true });
-    if (!updatedQuiz) return res.status(404).json({ message: "Quiz not found" });
+    const quiz = await Quiz.findById(req.params.quizId);
+    if (!quiz) return res.status(404).json({ message: "Quiz not found" });
 
-    res.status(200).json({ message: "Quiz updated successfully", quiz: updatedQuiz });
+    if (quiz.admin.toString() !== req.admin._id.toString())
+      return res.status(403).json({ message: "Unauthorized. You are not the quiz owner." });
+
+    Object.assign(quiz, req.body);
+    await quiz.save();
+
+    res.status(200).json({ message: "Quiz updated successfully", quiz });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// ✅ Mark quiz as inactive instead of deleting
+// ✅ Delete quiz (Mark as inactive) (Only creator can delete)
 exports.deleteQuiz = async (req, res) => {
   try {
     const quiz = await Quiz.findById(req.params.quizId);
     if (!quiz) return res.status(404).json({ message: "Quiz not found" });
+
+    if (quiz.admin.toString() !== req.admin._id.toString())
+      return res.status(403).json({ message: "Unauthorized. You are not the quiz owner." });
 
     quiz.isActive = false;
     await quiz.save();

@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Module = require("./Module");
-const { COURSE_DISCOUNT_PERCENTAGE } = require("./config");
+require('dotenv').config(); 
+const  COURSE_DISCOUNT_PERCENTAGE=process.env.COURSE_DISCOUNT_PERCENTAGE ;
 
 const courseSchema = new mongoose.Schema({
   title: { type: String, required: true },

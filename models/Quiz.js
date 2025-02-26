@@ -11,7 +11,7 @@ const quizSchema = new mongoose.Schema({
   duration: { type: Number, required: true }, // Duration in minutes to end Quiz
   createdAt: { type: Date, default: Date.now },
   startAt: { type: Date, required: true }, // Date and Time
-  rewardMarks: { type: Number, required: true },
+  rewardPoints: { type: Number, required: true },
 });
 
 // Pre-save hook to calculate totalMarks
