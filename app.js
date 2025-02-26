@@ -10,10 +10,11 @@ const teacherRoutes = require("./routes/teacherRoutes");
 const questionRoutes = require("./routes/questionRoutes");
 const enrollmentRoutes = require("./routes/enrollmentRoutes");
 const studentRoutes = require("./routes/studentRoutes");
-const rewardRoutes= require("./routes/rewardRoutes")
+const rewardRoutes = require("./routes/rewardRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const contentRoutes = require("./routes/contentRoutes");
 const quizRoutes = require("./routes/quizRoutes");
+
 const clientRoutes=require("./routes/clientroutes")
 
 
@@ -25,8 +26,8 @@ const PORT = process.env.PORT || 5000;
 app.use(express.json());
 
 
-// //  for monthly bonus automatic
-// require("./schedulers/monthlyBonus");
+//  for monthly bonus automatic
+require("./schedulers/monthlyBonus");
 
 
 // default

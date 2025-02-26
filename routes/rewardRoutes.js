@@ -36,4 +36,4 @@ router.delete("/", authenticateClient, deleteReward);
 //   }
 // });
 
-// module.exports = router;
+module.exports = router;
