@@ -16,6 +16,10 @@ const contentRoutes = require("./routes/contentRoutes");
 const quizRoutes = require("./routes/quizRoutes");
 const clientRoutes=require("./routes/clientroutes")
 
+require("./schedulers/monthlyBonus");
+
+
+
 const app = express();
 const Mongo_URI=process.env.MONGO_URI;
 const PORT = process.env.PORT || 5000;

@@ -6,7 +6,7 @@ const {
   authenticateClient,
   incrementRewardPoints,
   penaltyRewardPoints,
-
+  
   deleteReward,
 } = require("../controllers/rewardController");
 
@@ -20,4 +20,20 @@ router.put("/penalty", authenticateClient, penaltyRewardPoints);
 
 router.delete("/", authenticateClient, deleteReward);
 
-module.exports = router;
+
+// // Manual trigger route for monthly bonus (For Testing)
+
+// const { addMonthlyBonus } = require("../schedulers/monthlyBonus"); 
+
+// router.post("/trigger-monthly-bonus", async (req, res) => {
+//   try {
+//     console.log("started manually bonus trigger ")
+//     await addMonthlyBonus();
+//     console.log("completed manually bonus trigger ")
+//     res.status(200).json({ message: "Monthly bonus added successfully." });
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+
+// module.exports = router;
