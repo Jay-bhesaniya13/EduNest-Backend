@@ -16,9 +16,6 @@ const contentRoutes = require("./routes/contentRoutes");
 const quizRoutes = require("./routes/quizRoutes");
 const clientRoutes=require("./routes/clientroutes")
 
-require("./schedulers/monthlyBonus");
-
-
 
 const app = express();
 const Mongo_URI=process.env.MONGO_URI;
@@ -26,6 +23,11 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware to parse JSON bodies
 app.use(express.json());
+
+
+//  for monthly bonus automatic
+require("./schedulers/monthlyBonus");
+
 
 // default
 app.get("/", (req, res) => {
@@ -43,6 +45,7 @@ app.use("/api/enrollment", enrollmentRoutes);
 app.use("/api/question", questionRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/content", contentRoutes);
+
 
 
 // Default route for handling undefined routes
