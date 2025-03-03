@@ -1,5 +1,6 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const cors = require("cors");
 require('dotenv').config(); 
  
 const cron = require("node-cron");
@@ -25,6 +26,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware to parse JSON bodies
 app.use(express.json());
 
+app.use(cors({ origin: "*" }));
 
 //  for monthly bonus automatic
 require("./schedulers/monthlyBonus");
