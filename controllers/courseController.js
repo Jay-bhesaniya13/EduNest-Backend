@@ -1,15 +1,20 @@
 const Course = require("../models/Course");
-const Module = require("../models/Module");
 const Teacher = require("../models/Teacher");
+const Module = require("../models/Module");
+const fs = require("fs");
+const path = require("path");
+const { bucket } = require("../firebase");
 
 /**
  * @desc Create a new course
  * @route POST /courses/create
  * @access Public (Valid teacherId required)
  */
+
 exports.createCourse = async (req, res) => {
   try {
-    const { teacherId, title, description, modules, thumbnail, level } = req.body;
+    const { title, description, modules, level, thumbnail } = req.body;
+    const teacherId = req.teacher._id;
 
     // Check if teacher exists
     const teacher = await Teacher.findById(teacherId);
@@ -17,25 +22,71 @@ exports.createCourse = async (req, res) => {
 
     // Validate if all modules belong to the same teacher
     const moduleDocs = await Module.find({ _id: { $in: modules } });
-    if (moduleDocs.some(module => module.teacherId.toString() !== teacherId)) {
+    if (moduleDocs.some(module => module.teacherId.toString() !== teacherId.toString())) {
       return res.status(403).json({ message: "All modules must belong to the same teacher" });
     }
 
     // Calculate total price based on modules
     const totalModulePrice = moduleDocs.reduce((sum, module) => sum + module.price, 0);
 
-    const newCourse = new Course({
-      title,
-      description,
-      modules,
-      price: totalModulePrice,
-      teacherId,
-      thumbnail,
-      level
-    });
+    // Check if file is uploaded
+    if (!req.file || !thumbnail) {
+      return res.status(400).json({ message: "Thumbnail image file and name are required" });
+    }
 
-    await newCourse.save();
-    res.status(201).json({ message: "Course created successfully", course: newCourse });
+    // Validate file format (only jpg, jpeg allowed)
+    const allowedFormats = ["image/jpeg", "image/jpg"];
+    if (!allowedFormats.includes(req.file.mimetype)) {
+      return res.status(400).json({ message: "Only JPG/JPEG format is allowed for thumbnails" });
+    }
+
+    // Upload file to Firebase Storage
+    const filePath = req.file.path;
+    const fileName = `course_thumbnail/${Date.now()}_${path.basename(thumbnail)}`;
+    const fileUpload = bucket.file(fileName);
+
+    // Create stream and upload file
+    fs.createReadStream(filePath)
+      .pipe(fileUpload.createWriteStream({
+        metadata: { contentType: req.file.mimetype }
+      }))
+      .on("error", (err) => {
+        console.error("Error uploading thumbnail:", err);
+        return res.status(500).json({ error: "Error uploading thumbnail" });
+      })
+      .on("finish", async () => {
+        // Get public URL
+        const [url] = await fileUpload.getSignedUrl({
+          action: "read",
+          expires: "03-01-2030" // Expiry date for URL
+        });
+
+        // Delete temporary file
+        fs.unlink(filePath, (err) => {
+          if (err) console.error("Failed to delete temp file:", err);
+        });
+
+        // Create new course
+        const newCourse = new Course({
+          title,
+          description,
+          modules,
+          price: totalModulePrice,
+          teacherId,
+          thumbnail: url, // Store Firebase Storage URL
+          level,
+        });
+
+        await newCourse.save();
+
+        // Update teacher's `course_created` count
+        await Teacher.findByIdAndUpdate(teacherId, {
+          $inc: { course_created: 1 },
+        });
+
+        res.status(201).json({ message: "Course created successfully", course: newCourse });
+      });
+
   } catch (error) {
     console.error("Error creating course:", error);
     res.status(500).json({ error: "Server error" });
@@ -62,6 +113,7 @@ exports.getAllCourses = async (req, res) => {
  * @route GET /courses/:courseId/:teacherId
  * @access Public (Valid teacherId required)
  */
+
 exports.getCourseById = async (req, res) => {
   try {
     const { courseId, teacherId } = req.params;
@@ -96,7 +148,7 @@ exports.getAllCoursesForTeacher = async (req, res) => {
 
     // Find courses by teacherId
     const courses = await Course.find({ teacherId }).populate("modules", "title price");
-    
+
     res.json(courses);
   } catch (error) {
     console.error("Error fetching teacher's courses:", error);
@@ -178,7 +230,12 @@ exports.deleteCourse = async (req, res) => {
  */
 exports.addModuleToCourse = async (req, res) => {
   try {
-    const { courseId, teacherId, moduleId } = req.body;
+    const { courseId, moduleId } = req.body;
+
+    const teacherId = req.teacher._id;
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
+
     const course = await Course.findById(courseId);
 
     if (!course) return res.status(404).json({ message: "Course not found" });
@@ -203,8 +260,12 @@ exports.addModuleToCourse = async (req, res) => {
  */
 exports.removeModuleFromCourse = async (req, res) => {
   try {
-    const { courseId, teacherId, moduleId } = req.body;
+    const { courseId, moduleId } = req.body;
+    const teacherId = req.teacher._id;
     const course = await Course.findById(courseId);
+
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
 
     if (!course) return res.status(404).json({ message: "Course not found" });
 

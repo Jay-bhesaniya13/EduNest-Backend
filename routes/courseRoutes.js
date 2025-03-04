@@ -6,21 +6,21 @@ const {
   updateCourse,
   deleteCourse,
   addModuleToCourse,
-  removeModuleFromCourse
+  removeModuleFromCourse,
+  getAllCoursesForTeacher,
 } = require("../controllers/courseController");
+const { authenticateTeacher } = require("../controllers/authController");
 
 const router = express.Router();
 
-router.post("/create", createCourse);
-router.post("/addmodule", addModuleToCourse);
-router.put("/removemodule", removeModuleFromCourse);
+router.post("/create", authenticateTeacher, createCourse);
+router.post("/add-module", authenticateTeacher, addModuleToCourse);
+router.put("/remove-module", authenticateTeacher, removeModuleFromCourse);
 
 router.get("/", getAllCourses);
-router.get("/:courseId/:teacherId", getCourseById);
-router.put("/:courseId", updateCourse);
-router.delete("/:courseId/:teacherId", deleteCourse);
-
 router.get("/teacher/:teacherId", getAllCoursesForTeacher);
-
+router.get("/:courseId/:teacherId", getCourseById);
+router.put("/:courseId", authenticateTeacher, updateCourse);
+router.delete("/:courseId/:teacherId", authenticateTeacher, deleteCourse);
 
 module.exports = router;

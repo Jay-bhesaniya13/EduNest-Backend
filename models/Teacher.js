@@ -14,7 +14,7 @@ const teacherSchema = new mongoose.Schema({
   totalEarning:{type:Number, default:0},
   averageRating:{type:Number},
   total_students:{type:Number},
-  course_created:{type:String,default:0},
+  course_created: { type: Number, default: 0 },
   join_date:{type:Date,required:true} ,
   isVerified: { type: Boolean, default: true },
   isActive: { type: Boolean, default: true },
