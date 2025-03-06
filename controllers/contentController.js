@@ -6,6 +6,7 @@ const Content = require("../models/Content");
 
 // Define file type filters for image and video
 const fileFilter = (req, file, cb) => {
+
   const allowedImageTypes = ["image/jpeg", "image/png", "image/gif"];
   const allowedVideoTypes = ["video/mp4", "video/mov", "video/avi"];
 
@@ -41,6 +42,7 @@ const getVideoDuration = (filePath) => {
 exports.handleFileUpload = async (req, res) => {
   console.log("Request body:", req.body);
   console.log("Received file:", req.file);
+console.log("Private Key:", process.env.FIREBASE_PRIVATE_KEY.substring(0, 50)); // Don't log full key
 
   const { type, header, text, link } = req.body;
   const mediaFile = req.file;

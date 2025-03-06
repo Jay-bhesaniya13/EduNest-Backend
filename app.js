@@ -2,7 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 require('dotenv').config(); 
- 
+
 const cron = require("node-cron");
 const Course = require("./models/Course"); // Import Course model
 
@@ -18,7 +18,7 @@ const quizRoutes = require("./routes/quizRoutes");
 
 const clientRoutes=require("./routes/clientroutes")
 
-
+ 
 const app = express();
 const Mongo_URI=process.env.MONGO_URI;
 const PORT = process.env.PORT || 5000;

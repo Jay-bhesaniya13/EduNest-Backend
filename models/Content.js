@@ -21,6 +21,7 @@ const contentSchema = new mongoose.Schema(
         message: 'Text is required when content type is text.',
       },
     },
+
     mediaUrl: {
       type: String,
       validate: {
