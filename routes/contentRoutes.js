@@ -7,7 +7,7 @@ const multer = require('multer');
 const upload = multer({ dest: 'uploads/' }); // Temp folder for file storage
 
 // Route to upload content (image/video/text)
-router.post('/upload', upload.single('mediaFile'), handleFileUpload); // Handle file upload for content
+router.post('/create', upload.single('mediaFile'), handleFileUpload); // Handle file upload for content
 
 
  router.get("/get", getContent); // Get Content by ID

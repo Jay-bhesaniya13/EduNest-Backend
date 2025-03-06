@@ -97,7 +97,7 @@ console.log("Private Key:", process.env.FIREBASE_PRIVATE_KEY.substring(0, 50)); 
     const newContent = new Content(contentData);
     await newContent.save();
 
-    res.status(201).json({ message: "Content uploaded successfully", content: contentData });
+    res.status(201).json({ message: "Content uploaded successfully", newContent});
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error uploading content", error: error.message });

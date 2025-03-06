@@ -26,9 +26,7 @@ exports.createCourse = async (req, res) => {
       return res.status(403).json({ message: "All modules must belong to the same teacher" });
     }
 
-    // Calculate total price based on modules
-    const totalModulePrice = moduleDocs.reduce((sum, module) => sum + module.price, 0);
-
+     
     // Check if file is uploaded
     if (!req.file || !thumbnail) {
       return res.status(400).json({ message: "Thumbnail image file and name are required" });
@@ -71,7 +69,6 @@ exports.createCourse = async (req, res) => {
           title,
           description,
           modules,
-          price: totalModulePrice,
           teacherId,
           thumbnail: url, // Store Firebase Storage URL
           level,
@@ -164,7 +161,7 @@ exports.getAllCoursesForTeacher = async (req, res) => {
  */
 exports.updateCourse = async (req, res) => {
   try {
-    const { title, description, modules, level } = req.body;
+    const { title, description, level } = req.body;
     const { courseId } = req.params;
     const teacherId = req.teacher._id;
 
