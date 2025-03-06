@@ -110,13 +110,14 @@ exports.getAllCourses = async (req, res) => {
 
 /**
  * @desc Get a single course by ID (Only if teacherId matches)
- * @route GET /courses/:courseId/:teacherId
+ * @route GET /courses/:courseId
  * @access Public (Valid teacherId required)
  */
 
 exports.getCourseById = async (req, res) => {
   try {
-    const { courseId, teacherId } = req.params;
+    const { courseId, } = req.params;
+    const teacherId = req.teacher._id;
 
     const course = await Course.findById(courseId).populate("modules");
     if (!course) return res.status(404).json({ message: "Course not found" });
@@ -135,12 +136,12 @@ exports.getCourseById = async (req, res) => {
 
 /**
  * @desc Get all courses created by a specific teacher
- * @route GET /courses/teacher/:teacherId
+ * @route GET /courses/teacher
  * @access Public (Valid teacherId required)
  */
 exports.getAllCoursesForTeacher = async (req, res) => {
   try {
-    const { teacherId } = req.params;
+    const teacherId = req.teacher._id;
 
     // Check if teacher exists
     const teacher = await Teacher.findById(teacherId);
@@ -156,7 +157,6 @@ exports.getAllCoursesForTeacher = async (req, res) => {
   }
 };
 
-
 /**
  * @desc Update a course (Only if teacherId matches)
  * @route PUT /courses/:courseId
@@ -164,8 +164,9 @@ exports.getAllCoursesForTeacher = async (req, res) => {
  */
 exports.updateCourse = async (req, res) => {
   try {
-    const { teacherId, title, description, modules, thumbnail, level } = req.body;
+    const { title, description, modules, level } = req.body;
     const { courseId } = req.params;
+    const teacherId = req.teacher._id;
 
     const course = await Course.findById(courseId);
     if (!course) return res.status(404).json({ message: "Course not found" });
@@ -180,11 +181,60 @@ exports.updateCourse = async (req, res) => {
       return res.status(403).json({ message: "All modules must belong to the same teacher" });
     }
 
+    let newThumbnailUrl = course.thumbnail;
+
+    // Handle thumbnail update if a new file is provided
+    if (req.file && req.file.fieldname === "thumbnail") {
+      // Validate file format (only jpg, jpeg allowed)
+      const allowedFormats = ["image/jpeg", "image/jpg"];
+      if (!allowedFormats.includes(req.file.mimetype)) {
+        return res.status(400).json({ message: "Only JPG/JPEG format is allowed for thumbnails" });
+      }
+
+      // Extract old file name from the stored URL
+      const oldFileName = course.thumbnail.split("/").pop();
+
+      // Delete old thumbnail from Firebase Storage
+      if (oldFileName) {
+        const oldFile = bucket.file(`course_thumbnail/${oldFileName}`);
+        await oldFile.delete().catch(err => console.error("Error deleting old thumbnail:", err));
+      }
+
+      // Upload new thumbnail to Firebase Storage
+      const filePath = req.file.path;
+      const newFileName = `course_thumbnail/${Date.now()}_${req.file.originalname}`;
+      const fileUpload = bucket.file(newFileName);
+
+      await new Promise((resolve, reject) => {
+        fs.createReadStream(filePath)
+          .pipe(fileUpload.createWriteStream({ metadata: { contentType: req.file.mimetype } }))
+          .on("error", (err) => {
+            console.error("Error uploading new thumbnail:", err);
+            reject(res.status(500).json({ error: "Error uploading new thumbnail" }));
+          })
+          .on("finish", async () => {
+            // Get the new public URL
+            const [url] = await fileUpload.getSignedUrl({
+              action: "read",
+              expires: "03-01-2030",
+            });
+
+            newThumbnailUrl = url;
+            resolve();
+          });
+      });
+
+      // Delete temporary file
+      fs.unlink(filePath, (err) => {
+        if (err) console.error("Failed to delete temp file:", err);
+      });
+    }
+
     // Update course details
     course.title = title || course.title;
     course.description = description || course.description;
     course.modules = modules || course.modules;
-    course.thumbnail = thumbnail || course.thumbnail;
+    course.thumbnail = newThumbnailUrl; // Updated thumbnail URL
     course.level = level || course.level;
 
     // Recalculate price
@@ -199,6 +249,7 @@ exports.updateCourse = async (req, res) => {
   }
 };
 
+
 /**
  * @desc Delete a course (Only if teacherId matches)
  * @route DELETE /courses/:courseId/:teacherId
@@ -206,7 +257,8 @@ exports.updateCourse = async (req, res) => {
  */
 exports.deleteCourse = async (req, res) => {
   try {
-    const { courseId, teacherId } = req.params;
+    const { courseId } = req.params;
+    const teacherId = req.teacher._id;
 
     const course = await Course.findById(courseId);
     if (!course) return res.status(404).json({ message: "Course not found" });
@@ -231,8 +283,8 @@ exports.deleteCourse = async (req, res) => {
 exports.addModuleToCourse = async (req, res) => {
   try {
     const { courseId, moduleId } = req.body;
-
     const teacherId = req.teacher._id;
+
     const teacher = await Teacher.findById(teacherId);
     if (!teacher) return res.status(404).json({ message: "Teacher not found" });
 

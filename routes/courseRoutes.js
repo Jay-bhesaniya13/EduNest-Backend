@@ -17,10 +17,12 @@ router.post("/create", authenticateTeacher, createCourse);
 router.post("/add-module", authenticateTeacher, addModuleToCourse);
 router.put("/remove-module", authenticateTeacher, removeModuleFromCourse);
 
-router.get("/", getAllCourses);
-router.get("/teacher/:teacherId", getAllCoursesForTeacher);
-router.get("/:courseId/:teacherId", getCourseById);
+router.get("/teacher/",authenticateTeacher, getAllCoursesForTeacher);
+router.get("/:courseId/",authenticateTeacher, getCourseById);
 router.put("/:courseId", authenticateTeacher, updateCourse);
-router.delete("/:courseId/:teacherId", authenticateTeacher, deleteCourse);
+router.delete("/:courseId", authenticateTeacher, deleteCourse);
+
+router.get("/", getAllCourses);
+
 
 module.exports = router;
