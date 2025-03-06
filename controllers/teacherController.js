@@ -95,8 +95,6 @@ exports.verifyTeacherOTP = async (req, res) => {
     await newTeacher.save();
     await TempTeacher.deleteOne({ email });
 
-    const token = jwt.sign({ id: newTeacher._id, email: newTeacher.email }, jwtSecret);
-
     // Send Welcome Email
     const emailContent = `
       <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 500px; margin: auto; background-color: #f9f9f9;">
@@ -118,7 +116,7 @@ exports.verifyTeacherOTP = async (req, res) => {
 
     await sendEmail(email, "🎉 Welcome to EduNest! Your Account is Ready", emailContent);
 
-    res.status(201).json({ message: "Teacher registered successfully.", token });
+    res.status(201).json({ message: "Teacher registered successfully.", newTeacher });
 
   } catch (error) {
     res.status(500).json({ error: error.message });
