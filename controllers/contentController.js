@@ -179,7 +179,7 @@ exports.deleteContent = async (req, res) => {
     }
 
     // Delete content from MongoDB
-    await Content.findByIdAndDelete(id);
+    await Content.findByIdAndDelete(contentId);
 
     res.status(200).json({ message: "Content deleted successfully" });
   } catch (error) {
