@@ -12,7 +12,7 @@ router.post('/create', upload.single('mediaFile'), handleFileUpload); // Handle 
 
  router.get("/get/:contentId", getContent); // Get Content by ID
 router.get("/all",getAllContent); // Get All Content
-router.delete("/delete", deleteContent); // Delete Content by ID
+router.delete("/delete/:contentId", deleteContent); // Delete Content by ID
 
 
 
