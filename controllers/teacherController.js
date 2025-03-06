@@ -196,10 +196,26 @@ exports.getTeacherProfile = async (req, res) => {
 };
 
 // **7. Update Teacher's Own Profile**
+// **7. Update Teacher's Own Profile**
 exports.updateTeacherProfile = async (req, res) => {
   try {
-    const updatedData = req.body;
-    const teacher = await Teacher.findByIdAndUpdate(req.teacher.id, updatedData, { new: true });
+    const teacherId=req.teacher.id;
+    // Define allowed fields
+    const allowedFields = ["name", "contactNumber", "profilepicURL", "about", "areas_of_expertise", "city"];
+    
+    // Filter request body to only include allowed fields
+    const updatedData = {};
+    Object.keys(req.body).forEach((key) => {
+      if (allowedFields.includes(key)) {
+        updatedData[key] = req.body[key];
+      }
+    });
+
+    if (Object.keys(updatedData).length === 0) {
+      return res.status(400).json({ error: "No valid fields provided for update." });
+    }
+
+    const teacher = await Teacher.findByIdAndUpdate(teacherId, updatedData, { new: true });
 
     if (!teacher) {
       return res.status(404).json({ error: "Teacher not found." });
@@ -211,6 +227,7 @@ exports.updateTeacherProfile = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 // **8. Deactivate Teacher's Own Account**
 exports.deactivateTeacher = async (req, res) => {
