@@ -36,22 +36,35 @@ const courseSchema = new mongoose.Schema({
 });
 
 // Pre-save hook to calculate final course price
+// 🔥 Pre-save hook to calculate price and sell_price
 courseSchema.pre("save", async function (next) {
-  try {
-   console.log("*****************pre is called.****************")
-   console.log("COURSE_DISCOUNT_PERCENTAGE:"+COURSE_DISCOUNT_PERCENTAGE)
+  console.log("🔥 Pre-save hook triggered for:", this.title);
 
+  try {
+    if (!this.modules || this.modules.length === 0) {
+      return next(new Error("A course must have at least one module"));
+    }
+
+    // Fetch module prices
     const moduleDocs = await Module.find({ _id: { $in: this.modules } });
 
-    const totalModulePrice = moduleDocs.reduce((sum, module) => sum + module.price, 0);
+    if (moduleDocs.length === 0) {
+      return next(new Error("Invalid modules: No modules found"));
+    }
 
-    // Apply discount percentage from config
+    // Calculate total module price
+    const totalModulePrice = moduleDocs.reduce((sum, module) => sum + module.price, 0);
+    console.log("Total Module Price:", totalModulePrice);
+
+    // Apply discount
     const discountAmount = (totalModulePrice * COURSE_DISCOUNT_PERCENTAGE) / 100;
     this.price = totalModulePrice - discountAmount;
+    console.log("Price after discount:", this.price);
 
-    // Apply extra charges to get final sell price
+    // Apply extra charge
     this.sell_price = this.price + (this.price * COURSE_PRICE_CHARGE_PERCENTAGE) / 100;
-    console.log("sell_price:"+this.sell_price)
+    console.log("Final Selling Price:", this.sell_price);
+
     next();
   } catch (error) {
     next(error);
