@@ -28,11 +28,13 @@ exports.createCourse = async (req, res) => {
       return res.status(400).json({ message: "At least one module is required" });
     }
 
-    // Convert module IDs to ObjectId and fetch modules
-    const moduleIds = modules.map(id => new mongoose.Types.ObjectId(id));
-    const moduleDocs = await Module.find({ _id: { $in: moduleIds } });
+    if (!modules.every(id => mongoose.Types.ObjectId.isValid(id))) {
+      return res.status(400).json({ message: "One or more module IDs are invalid" });
+    }
 
-    if (moduleDocs.length !== moduleIds.length) {
+    // Fetch modules and validate ownership
+    const moduleDocs = await Module.find({ _id: { $in: modules } });
+    if (moduleDocs.length !== modules.length) {
       return res.status(400).json({ message: "One or more modules are invalid" });
     }
 
@@ -77,7 +79,7 @@ exports.createCourse = async (req, res) => {
     const newCourse = new Course({
       title,
       description,
-      modules: moduleIds,
+      modules,
       teacherId,
       thumbnail: thumbnailUrl,
       level,
@@ -96,6 +98,7 @@ exports.createCourse = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
 
 
 /**
