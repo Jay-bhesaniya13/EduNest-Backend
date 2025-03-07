@@ -173,7 +173,7 @@ exports.loginTeacher = async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials." });
     }
 
-    const token = jwt.sign({ id: teacher._id, email: teacher.email }, jwtSecret);
+    const token = jwt.sign({ id: teacher._id, email: teacher.email }, jwtSecret , { expiresIn: "7d" });
     res.json({ message: "Login successful.", token });
 
   } catch (error) {
