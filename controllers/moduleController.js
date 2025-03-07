@@ -4,7 +4,8 @@ const Content = require("../models/Content");
 // Create a new module
 exports.createModule = async (req, res) => {
   try {
-    const { title, price, prerequisites, teacherId, content } = req.body;
+    const { title, price, prerequisites,  content } = req.body;
+    const teacherId = req.teacher._id;
 
     // Validate required fields
     if (!title || !price || !teacherId || !Array.isArray(content) || content.length === 0) {
@@ -124,8 +125,8 @@ exports.deleteModule = async (req, res) => {
 // Get modules created by a specific teacher
 exports.teacherModule = async (req, res) => {
   try {
-    const teacherId = req.params.teacherId;
-    const modules = await Module.find({ teacherId }).populate("content").sort({ createdAt: -1 });
+    const teacherId = req.teacher._id;
+        const modules = await Module.find({ teacherId }).populate("content").sort({ createdAt: -1 });
     res.status(200).json(modules);
   } catch (error) {
     res.status(500).json({ error: error.message });
