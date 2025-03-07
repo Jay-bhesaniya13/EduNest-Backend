@@ -4,6 +4,8 @@ const Module = require("../models/Module");
 const fs = require("fs");
 const path = require("path");
 const { bucket } = require("../firebase");
+const COURSE_DISCOUNT_PERCENTAGE = process.env.COURSE_DISCOUNT_PERCENTAGE || 10;
+const COURSE_PRICE_CHARGE_PERCENTAGE = process.env.COURSE_PRICE_CHARGE_PERCENTAGE || 10;
 
 /**
  * @desc Create a new course
@@ -64,6 +66,14 @@ exports.createCourse = async (req, res) => {
       });
     }
 
+
+      // 🔥 Calculate Price & Sell Price
+  
+      const totalModulePrice = moduleDocs.reduce((sum, module) => sum + module.price, 0);
+      const discountAmount = (totalModulePrice * COURSE_DISCOUNT_PERCENTAGE) / 100;
+      const price = totalModulePrice - discountAmount;
+      const sell_price = price + (price * COURSE_PRICE_CHARGE_PERCENTAGE) / 100;
+
     // Create new course
     const newCourse = new Course({
       title,
@@ -72,6 +82,8 @@ exports.createCourse = async (req, res) => {
       teacherId,
       thumbnail: thumbnailUrl, // Use the default or uploaded URL
       level,
+      price,
+      sell_price
     });
 
     await newCourse.save();
