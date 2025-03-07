@@ -13,7 +13,7 @@ const { bucket } = require("../firebase");
 
 exports.createCourse = async (req, res) => {
   try {
-    const { title, description, modules, level, thumbnail } = req.body;
+    const { title, description, modules, level } = req.body;
     const teacherId = req.teacher._id;
 
     // Check if teacher exists
@@ -26,63 +26,60 @@ exports.createCourse = async (req, res) => {
       return res.status(403).json({ message: "All modules must belong to the same teacher" });
     }
 
-     
-    // Check if file is uploaded
-    if (!req.file || !thumbnail) {
-      return res.status(400).json({ message: "Thumbnail image file and name are required" });
-    }
+    let thumbnailUrl = "https://example.com/default-thumbnail.jpg"; // Default thumbnail URL
 
-    // Validate file format (only jpg, jpeg allowed)
-    const allowedFormats = ["image/jpeg", "image/jpg"];
-    if (!allowedFormats.includes(req.file.mimetype)) {
-      return res.status(400).json({ message: "Only JPG/JPEG format is allowed for thumbnails" });
-    }
+    // If a thumbnail file is uploaded, process it
+    if (req.file) {
+      // Validate file format (only jpg, jpeg allowed)
+      const allowedFormats = ["image/jpeg", "image/jpg"];
+      if (!allowedFormats.includes(req.file.mimetype)) {
+        return res.status(400).json({ message: "Only JPG/JPEG format is allowed for thumbnails" });
+      }
 
-    // Upload file to Firebase Storage
-    const filePath = req.file.path;
-    const fileName = `course_thumbnail/${Date.now()}_${path.basename(thumbnail)}`;
-    const fileUpload = bucket.file(fileName);
+      // Upload file to Firebase Storage
+      const filePath = req.file.path;
+      const fileName = `course_thumbnail/${Date.now()}_${req.file.originalname}`;
+      const fileUpload = bucket.file(fileName);
 
-    // Create stream and upload file
-    fs.createReadStream(filePath)
-      .pipe(fileUpload.createWriteStream({
-        metadata: { contentType: req.file.mimetype }
-      }))
-      .on("error", (err) => {
-        console.error("Error uploading thumbnail:", err);
-        return res.status(500).json({ error: "Error uploading thumbnail" });
-      })
-      .on("finish", async () => {
-        // Get public URL
-        const [url] = await fileUpload.getSignedUrl({
-          action: "read",
-          expires: "03-01-2030" // Expiry date for URL
-        });
-
-        // Delete temporary file
-        fs.unlink(filePath, (err) => {
-          if (err) console.error("Failed to delete temp file:", err);
-        });
-
-        // Create new course
-        const newCourse = new Course({
-          title,
-          description,
-          modules,
-          teacherId,
-          thumbnail: url, // Store Firebase Storage URL
-          level,
-        });
-
-        await newCourse.save();
-
-        // Update teacher's `course_created` count
-        await Teacher.findByIdAndUpdate(teacherId, {
-          $inc: { course_created: 1 },
-        });
-
-        res.status(201).json({ message: "Course created successfully", course: newCourse });
+      await new Promise((resolve, reject) => {
+        fs.createReadStream(filePath)
+          .pipe(fileUpload.createWriteStream({ metadata: { contentType: req.file.mimetype } }))
+          .on("error", (err) => {
+            console.error("Error uploading thumbnail:", err);
+            reject(res.status(500).json({ error: "Error uploading thumbnail" }));
+          })
+          .on("finish", async () => {
+            const [url] = await fileUpload.getSignedUrl({
+              action: "read",
+              expires: "03-01-2030",
+            });
+            thumbnailUrl = url; // Set uploaded file URL
+            resolve();
+          });
       });
+
+      // Delete temporary file
+      fs.unlink(filePath, (err) => {
+        if (err) console.error("Failed to delete temp file:", err);
+      });
+    }
+
+    // Create new course
+    const newCourse = new Course({
+      title,
+      description,
+      modules,
+      teacherId,
+      thumbnail: thumbnailUrl, // Use the default or uploaded URL
+      level,
+    });
+
+    await newCourse.save();
+
+    // Update teacher's `course_created` count
+    await Teacher.findByIdAndUpdate(teacherId, { $inc: { course_created: 1 } });
+
+    res.status(201).json({ message: "Course created successfully", course: newCourse });
 
   } catch (error) {
     console.error("Error creating course:", error);
