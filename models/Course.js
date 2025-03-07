@@ -38,6 +38,9 @@ const courseSchema = new mongoose.Schema({
 // Pre-save hook to calculate final course price
 courseSchema.pre("save", async function (next) {
   try {
+   console.log("*****************pre is called.****************")
+   console.log("COURSE_DISCOUNT_PERCENTAGE:"+COURSE_DISCOUNT_PERCENTAGE)
+
     const moduleDocs = await Module.find({ _id: { $in: this.modules } });
 
     const totalModulePrice = moduleDocs.reduce((sum, module) => sum + module.price, 0);
@@ -48,7 +51,7 @@ courseSchema.pre("save", async function (next) {
 
     // Apply extra charges to get final sell price
     this.sell_price = this.price + (this.price * COURSE_PRICE_CHARGE_PERCENTAGE) / 100;
-
+    console.log("sell_price:"+this.sell_price)
     next();
   } catch (error) {
     next(error);
