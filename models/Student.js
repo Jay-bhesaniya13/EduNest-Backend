@@ -18,7 +18,7 @@ const studentSchema = new mongoose.Schema({
   city: { type: String },
   courses_enrolled: { type: Number, default: 0 },
   modules_enrolled: { type: Number, default: 0 },
-
+  
   // 🔹 Reward System
   rewardPoints: { 
     type: Number, 

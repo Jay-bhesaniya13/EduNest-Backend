@@ -11,7 +11,7 @@ const {
 const router = express.Router();
 
 // Create a new module
-router.post("/", createModule);
+router.post("/create", createModule);
 
 // Get all modules
 router.get("/", getAllModules);

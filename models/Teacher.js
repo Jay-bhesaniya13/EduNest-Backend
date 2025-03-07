@@ -10,6 +10,8 @@ const teacherSchema = new mongoose.Schema({
   about:{type:String},
   areas_of_expertise:[{type:String}],
   city:{type:String},
+
+  balance: { type: Number, default: 0 }, // current account balance
   
   totalEarning:{type:Number, default:0},
   averageRating:{type:Number},
@@ -18,7 +20,6 @@ const teacherSchema = new mongoose.Schema({
   join_date:{type:Date,required:true} ,
   isVerified: { type: Boolean, default: true },
   isActive: { type: Boolean, default: true },
-  balance: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
 });
 

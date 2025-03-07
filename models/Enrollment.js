@@ -1,13 +1,16 @@
 const mongoose = require("mongoose");
 
 const enrollmentSchema = new mongoose.Schema({
-  student: { type: mongoose.Schema.Types.ObjectId, ref: "Student", required: true },
-  course: { type: mongoose.Schema.Types.ObjectId, ref: "Course", required: true },
-  modules: [{ type: mongoose.Schema.Types.ObjectId, ref: "Module" }], // Reference to Module
-  modulePrices: [{ type: Number }], // Array of purchase prices corresponding to each module in the modules array
-  progress: { type: Number, default: 0 },
-  completionDate: { type: Date },
-  enrolledAt: { type: Date, default: Date.now },
+  studentId: { type: mongoose.Schema.Types.ObjectId, ref: "Student", required: true },
+  courseId: { type: mongoose.Schema.Types.ObjectId, ref: "Course", required: true },
+  moduleIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Module" }], // List of enrolled module IDs
+  enrollmentDate: { type: Date, default: Date.now },
+  progress: { type: Number, default: 0 }, // Percentage progress
+  status: { 
+    type: String, 
+    enum: ["active", "completed", "inactive"], 
+    default: "active" 
+  }
 });
 
 module.exports = mongoose.model("Enrollment", enrollmentSchema);

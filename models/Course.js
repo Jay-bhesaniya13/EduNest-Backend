@@ -1,13 +1,18 @@
 const mongoose = require("mongoose");
 const Module = require("./Module");
-require('dotenv').config(); 
-const  COURSE_DISCOUNT_PERCENTAGE=process.env.COURSE_DISCOUNT_PERCENTAGE ;
+require('dotenv').config();
+
+const COURSE_DISCOUNT_PERCENTAGE = process.env.COURSE_DISCOUNT_PERCENTAGE || 0;
+const COURSE_PRICE_CHARGE_PERCENTAGE = process.env.COURSE_PRICE_CHARGE_PERCENTAGE || 0;
 
 const courseSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String },
   modules: [{ type: mongoose.Schema.Types.ObjectId, ref: "Module" }],
-  price: { type: Number, required: true }, // Auto-updated based on module prices
+
+  price: { type: Number, required: true }, // Base price calculated from module prices
+  sell_price: { type: Number, required: true }, // Final selling price including extra charges
+
   isActivate: { type: Boolean, default: true },
   teacherId: { type: mongoose.Schema.Types.ObjectId, ref: "Teacher", required: true },
   createdAt: { type: Date, default: Date.now },
@@ -19,13 +24,15 @@ const courseSchema = new mongoose.Schema({
     enum: ["beginner", "intermediate", "advanced"], 
     required: true 
   },
-  totalRating:{type:Number},
-  ratedStudent:{type:Number},
-  avgRating:{type:Number},
-  totalSell: { type: Number, default: 0 }, // Total sales ever
-  lastMonthSell: { type: Number, default: 0 }, // Sales in the last month
-  last6MonthSell: { type: Number, default: 0 }, // Sales in the last 6 months
-  lastYearSell: { type: Number, default: 0 }, // Sales in the last year
+  totalRating: { type: Number },
+  ratedStudent: { type: Number },
+  avgRating: { type: Number },
+
+  // Sales Tracking Fields
+  totalSell: { type: Number, default: 0 },
+  lastMonthSell: { type: Number, default: 0 },
+  last6MonthSell: { type: Number, default: 0 },
+  lastYearSell: { type: Number, default: 0 },
 });
 
 // Pre-save hook to calculate final course price
@@ -38,6 +45,9 @@ courseSchema.pre("save", async function (next) {
     // Apply discount percentage from config
     const discountAmount = (totalModulePrice * COURSE_DISCOUNT_PERCENTAGE) / 100;
     this.price = totalModulePrice - discountAmount;
+
+    // Apply extra charges to get final sell price
+    this.sell_price = this.price + (this.price * COURSE_PRICE_CHARGE_PERCENTAGE) / 100;
 
     next();
   } catch (error) {
@@ -52,13 +62,11 @@ courseSchema.statics.updateMonthlySales = async function () {
   const courses = await this.find();
 
   for (const course of courses) {
-    // Move sales data down
     course.lastYearSell -= course.lastMonthSell;
     course.last6MonthSell -= course.lastMonthSell;
-    course.last6MonthSell = Math.max(course.last6MonthSell, 0); // Ensure it doesn't go negative
+    course.last6MonthSell = Math.max(course.last6MonthSell, 0);
     course.lastYearSell = Math.max(course.lastYearSell, 0);
 
-    // Reset last month sales
     course.lastMonthSell = 0;
 
     await course.save();

@@ -5,17 +5,20 @@ const moduleSchema = new mongoose.Schema(
     title: { type: String, required: true },
     content: [{ type: mongoose.Schema.Types.ObjectId, ref: "Content", required: true }],
     teacherId: { type: mongoose.Schema.Types.ObjectId, ref: "Teacher", required: true },
-    price: { type: Number, required: true },
+    
+    price: { type: Number, required: true }, // Base price set by teacher
+    sell_price: { type: Number, required: true }, // Final selling price including extra charges
+    
     prerequisites: { type: [String] },
     isActive: { type: Boolean, default: true },
     durationHours: { type: Number, default: 0 },
     durationMinutes: { type: Number, default: 0 },
+
     // 🛒 Sales Tracking Fields
     totalSales: { type: Number, default: 0 },
     monthlySales: { type: Number, default: 0 },
     sixMonthSales: { type: Number, default: 0 },
     yearlySales: { type: Number, default: 0 },
-    
   },
   { timestamps: true }
 );
@@ -35,23 +38,26 @@ moduleSchema.methods.calculateDuration = async function () {
   this.durationMinutes = totalMinutes % 60;
 };
 
-// 🔄 Automatically update duration before saving
+// 🔄 Automatically update duration and sell price before saving
 moduleSchema.pre("save", async function (next) {
   await this.calculateDuration();
+  
+  const COURSE_PRICE_CHARGE_PERCENTAGE = process.env.COURSE_PRICE_CHARGE_PERCENTAGE || 0;
+  this.sell_price = this.price + (this.price * COURSE_PRICE_CHARGE_PERCENTAGE) / 100;
+
   next();
 });
 
 // 🔄 Method to update sales stats at the start of each month
 moduleSchema.statics.updateMonthlySales = async function () {
   try {
-    const modules = await this.find(); // Get all modules
+    const modules = await this.find();
 
     for (const module of modules) {
       module.yearlySales -= module.monthlySales;
       module.sixMonthSales -= module.monthlySales;
-      module.monthlySales = 0; // Reset monthly sales
+      module.monthlySales = 0;
 
-      // Ensure sales don't go negative
       module.yearlySales = Math.max(module.yearlySales, 0);
       module.sixMonthSales = Math.max(module.sixMonthSales, 0);
 

@@ -12,10 +12,10 @@ const { COURSE_DISCOUNT_PERCENTAGE } = process.env.COURSE_DISCOUNT_PERCENTAGE;
 // Enroll student in all modules of a course with discounted price
 exports.coursePurchaseEnrollment = async (req, res) => {
   try {
-    const { studentId, courseId, transactionId } = req.body;
+    const { studentId, courseId } = req.body;
 
-    if (!studentId || !courseId || !transactionId) {
-      return res.status(400).json({ message: "studentId, courseId, and transactionId are required" });
+    if (!studentId || !courseId) {
+      return res.status(400).json({ message: "studentId and courseId are required" });
     }
 
     const student = await Student.findById(studentId);
@@ -25,19 +25,8 @@ exports.coursePurchaseEnrollment = async (req, res) => {
     const course = await Course.findById(courseId).populate("modules");
     if (!course) return res.status(404).json({ message: "Course not found" });
 
-    const transaction = await Transaction.findById(transactionId);
-    if (!transaction || transaction.status !== "success") {
-      return res.status(400).json({ message: "Invalid or failed transaction" });
-    }
-
     const teacherId = course.teacherId;
-    const now = new Date();
-    const month = now.getMonth() + 1;
-    const year = now.getFullYear();
-    const time = now.toLocaleTimeString();
-    const date = now;
-    const transactionAmount = transaction.amount;
-
+    
     const modules = course.modules.map((module) => ({
       moduleId: module._id,
       price: module.price - (module.price * COURSE_DISCOUNT_PERCENTAGE) / 100,
@@ -60,27 +49,19 @@ exports.coursePurchaseEnrollment = async (req, res) => {
     });
     await newEnrollment.save();
 
+    const moduleIds = modules.map((mod) => mod.moduleId);
+
+    // Update student document
+    await Student.findByIdAndUpdate(studentId, {
+      $addToSet: { courses_enrolled: courseId, modules_enrolled: { $each: moduleIds } }
+    });
+
     await Course.findByIdAndUpdate(courseId, { $inc: { totalSales: 1, monthlySales: 1, sixMonthSales: 1, yearlySales: 1 } });
 
     for (let mod of modules) {
       await Module.findByIdAndUpdate(mod.moduleId, { $inc: { totalSales: 1, monthlySales: 1, sixMonthSales: 1, yearlySales: 1 } });
     }
 
-    // ✅ Update Admin's Account Income
-    let accountIncome = await AccountIncome.findOne({ month, year });
-
-    if (!accountIncome) {
-      accountIncome = new AccountIncome({ month, year, incomes: [] });
-    }
-
-    accountIncome.incomes.push({
-      amount: transactionAmount,
-      reason: `${course.title} enrolled by ${student.name}`,
-      time,
-      date,
-    });
-
-    await accountIncome.save();
 
     // ✅ Update Teacher's Balance & BalanceHistory
     const teacher = await Teacher.findById(teacherId);
@@ -88,7 +69,9 @@ exports.coursePurchaseEnrollment = async (req, res) => {
       return res.status(404).json({ message: "Teacher not found" });
     }
 
-    teacher.balance += transactionAmount;
+    // Add total original price of modules to teacher's balance
+    const totalOriginalPrice = modules.reduce((sum, mod) => sum + mod.originalPrice, 0);
+    teacher.balance += totalOriginalPrice;
     await teacher.save();
 
     let balanceHistory = await BalanceHistory.findOne({ teacherId });
@@ -97,8 +80,8 @@ exports.coursePurchaseEnrollment = async (req, res) => {
     }
 
     balanceHistory.historyIncome.push({
-      income: transactionAmount,
-      reason: `${course.title} enrolled by ${student.name}`,
+      income: totalOriginalPrice ,
+      reason: `Full ${course.title} enrolled by ${student.name}`,
       date,
     });
 
@@ -111,13 +94,14 @@ exports.coursePurchaseEnrollment = async (req, res) => {
   }
 };
 
+
 // Create enrollment for selected modules
 exports.createEnrollmentModules = async (req, res) => {
   try {
-    const { studentId, courseId, modules, transactionId } = req.body;
+    const { studentId, courseId, modules } = req.body;
 
-    if (!studentId || !courseId || !modules || modules.length === 0 || !transactionId) {
-      return res.status(400).json({ message: "studentId, courseId, modules, and transactionId are required" });
+    if (!studentId || !courseId || !modules || modules.length === 0) {
+      return res.status(400).json({ message: "studentId, courseId & modules are required" });
     }
 
     const student = await Student.findById(studentId);
@@ -127,25 +111,15 @@ exports.createEnrollmentModules = async (req, res) => {
     const existingCourse = await Course.findById(courseId);
     if (!existingCourse) return res.status(404).json({ message: "Course not found" });
 
-    const transaction = await Transaction.findById(transactionId);
-    if (!transaction || transaction.status !== "success") {
-      return res.status(400).json({ message: "Invalid or failed transaction" });
-    }
-
     const teacherId = existingCourse.teacherId;
-    const now = new Date();
-    const month = now.getMonth() + 1;
-    const year = now.getFullYear();
-    const time = now.toLocaleTimeString();
-    const date = now;
-    const transactionAmount = transaction.amount;
-
+     
     let enrollment = await Enrollment.findOne({ student: studentId, course: courseId });
     if (enrollment) {
       for (let module of modules) {
         if (!enrollment.modules.includes(module.moduleId)) {
+          sell_price+=module.sell_price;
+          price+=module.price;
           enrollment.modules.push(module.moduleId);
-          enrollment.modulePrices.push(module.price);
           await Module.findByIdAndUpdate(module.moduleId, { $inc: { totalSales: 1, monthlySales: 1, sixMonthSales: 1, yearlySales: 1 } });
         }
       }
@@ -159,31 +133,21 @@ exports.createEnrollmentModules = async (req, res) => {
       });
       await enrollment.save();
     }
-
-    // ✅ Update Admin's Account Income
-    let accountIncome = await AccountIncome.findOne({ month, year });
-
-    if (!accountIncome) {
-      accountIncome = new AccountIncome({ month, year, incomes: [] });
-    }
-
-    accountIncome.incomes.push({
-      amount: transactionAmount,
-      reason: `Modules from ${existingCourse.title} enrolled by ${student.name}`,
-      time,
-      date,
-    });
-
-    await accountIncome.save();
+ 
 
     // ✅ Update Teacher's Balance & BalanceHistory
     const teacher = await Teacher.findById(teacherId);
     if (!teacher) {
       return res.status(404).json({ message: "Teacher not found" });
     }
+  
 
-    teacher.balance += transactionAmount;
+    // Add total original price of modules to teacher's balance
+    const totalOriginalPrice = modules.reduce((sum, mod) => sum + mod.originalPrice, 0);
+    teacher.balance += totalOriginalPrice;
     await teacher.save();
+
+ 
 
     let balanceHistory = await BalanceHistory.findOne({ teacherId });
     if (!balanceHistory) {
