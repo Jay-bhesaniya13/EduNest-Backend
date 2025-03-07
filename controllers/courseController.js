@@ -179,7 +179,7 @@ exports.updateCourse = async (req, res) => {
     const course = await Course.findById(courseId);
     if (!course) return res.status(404).json({ message: "Course not found" });
 
-    if (course.teacherId.toString() !== teacherId) {
+    if (course.teacherId.toString() !== teacherId.toString()) {
       return res.status(403).json({ message: "You are not authorized to update this course" });
     }
 
@@ -271,7 +271,7 @@ exports.deleteCourse = async (req, res) => {
     const course = await Course.findById(courseId);
     if (!course) return res.status(404).json({ message: "Course not found" });
 
-    if (course.teacherId.toString() !== teacherId) {
+    if (course.teacherId.toString() !== teacherId.toString()) {
       return res.status(403).json({ message: "You are not authorized to delete this course" });
     }
 
