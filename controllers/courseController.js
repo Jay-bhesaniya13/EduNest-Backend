@@ -183,12 +183,7 @@ exports.updateCourse = async (req, res) => {
       return res.status(403).json({ message: "You are not authorized to update this course" });
     }
 
-    // Validate if all modules belong to the same teacher
-    const moduleDocs = await Module.find({ _id: { $in: modules } });
-    if (moduleDocs.some(module => module.teacherId.toString() !== teacherId)) {
-      return res.status(403).json({ message: "All modules must belong to the same teacher" });
-    }
-
+   
     let newThumbnailUrl = course.thumbnail;
 
     // Handle thumbnail update if a new file is provided
@@ -241,14 +236,10 @@ exports.updateCourse = async (req, res) => {
     // Update course details
     course.title = title || course.title;
     course.description = description || course.description;
-    course.modules = modules || course.modules;
-    course.thumbnail = newThumbnailUrl; // Updated thumbnail URL
+     course.thumbnail = newThumbnailUrl; // Updated thumbnail URL
     course.level = level || course.level;
 
-    // Recalculate price
-    const totalModulePrice = moduleDocs.reduce((sum, module) => sum + module.price, 0);
-    course.price = totalModulePrice;
-
+    
     await course.save();
     res.json({ message: "Course updated successfully", course });
   } catch (error) {
