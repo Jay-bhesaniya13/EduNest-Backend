@@ -38,6 +38,7 @@ const courseSchema = new mongoose.Schema({
 // Pre-save hook to calculate final course price
 // 🔥 Pre-save hook to calculate price and sell_price
 courseSchema.pre("save", async function (next) {
+  
   console.log("🔥 Pre-save hook triggered for:", this.title);
 
   try {

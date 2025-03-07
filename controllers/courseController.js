@@ -1,86 +1,85 @@
+const mongoose = require("mongoose");
 const Course = require("../models/Course");
 const Teacher = require("../models/Teacher");
 const Module = require("../models/Module");
 const fs = require("fs");
-const path = require("path");
 const { bucket } = require("../firebase");
-const COURSE_DISCOUNT_PERCENTAGE = process.env.COURSE_DISCOUNT_PERCENTAGE || 10;
-const COURSE_PRICE_CHARGE_PERCENTAGE = process.env.COURSE_PRICE_CHARGE_PERCENTAGE || 10;
+require("dotenv").config();
+
+const COURSE_DISCOUNT_PERCENTAGE = parseFloat(process.env.COURSE_DISCOUNT_PERCENTAGE) || 10;
+const COURSE_PRICE_CHARGE_PERCENTAGE = parseFloat(process.env.COURSE_PRICE_CHARGE_PERCENTAGE) || 10;
 
 /**
  * @desc Create a new course
  * @route POST /courses/create
  * @access Public (Valid teacherId required)
  */
-
 exports.createCourse = async (req, res) => {
   try {
     const { title, description, modules, level } = req.body;
     const teacherId = req.teacher._id;
 
-    // Check if teacher exists
+    // Validate teacher
     const teacher = await Teacher.findById(teacherId);
     if (!teacher) return res.status(404).json({ message: "Teacher not found" });
 
-    // Validate if all modules belong to the same teacher
-    const moduleDocs = await Module.find({ _id: { $in: modules } });
+    // Validate modules
+    if (!modules || !Array.isArray(modules) || modules.length === 0) {
+      return res.status(400).json({ message: "At least one module is required" });
+    }
+
+    // Convert module IDs to ObjectId and fetch modules
+    const moduleIds = modules.map(id => new mongoose.Types.ObjectId(id));
+    const moduleDocs = await Module.find({ _id: { $in: moduleIds } });
+
+    if (moduleDocs.length !== moduleIds.length) {
+      return res.status(400).json({ message: "One or more modules are invalid" });
+    }
+
     if (moduleDocs.some(module => module.teacherId.toString() !== teacherId.toString())) {
       return res.status(403).json({ message: "All modules must belong to the same teacher" });
     }
 
-    let thumbnailUrl = "https://example.com/default-thumbnail.jpg"; // Default thumbnail URL
+    // Default thumbnail URL
+    let thumbnailUrl = "https://example.com/default-thumbnail.jpg";
 
-    // If a thumbnail file is uploaded, process it
+    // If thumbnail uploaded, process it
     if (req.file) {
-      // Validate file format (only jpg, jpeg allowed)
       const allowedFormats = ["image/jpeg", "image/jpg"];
       if (!allowedFormats.includes(req.file.mimetype)) {
         return res.status(400).json({ message: "Only JPG/JPEG format is allowed for thumbnails" });
       }
 
-      // Upload file to Firebase Storage
-      const filePath = req.file.path;
       const fileName = `course_thumbnail/${Date.now()}_${req.file.originalname}`;
       const fileUpload = bucket.file(fileName);
 
       await new Promise((resolve, reject) => {
-        fs.createReadStream(filePath)
+        fs.createReadStream(req.file.path)
           .pipe(fileUpload.createWriteStream({ metadata: { contentType: req.file.mimetype } }))
-          .on("error", (err) => {
-            console.error("Error uploading thumbnail:", err);
-            reject(res.status(500).json({ error: "Error uploading thumbnail" }));
-          })
+          .on("error", err => reject(res.status(500).json({ error: "Error uploading thumbnail" })))
           .on("finish", async () => {
-            const [url] = await fileUpload.getSignedUrl({
-              action: "read",
-              expires: "03-01-2030",
-            });
-            thumbnailUrl = url; // Set uploaded file URL
+            const [url] = await fileUpload.getSignedUrl({ action: "read", expires: "03-01-2030" });
+            thumbnailUrl = url;
             resolve();
           });
       });
 
-      // Delete temporary file
-      fs.unlink(filePath, (err) => {
-        if (err) console.error("Failed to delete temp file:", err);
-      });
+      fs.unlink(req.file.path, err => { if (err) console.error("Failed to delete temp file:", err); });
     }
 
+    // Calculate course price
+    const totalModulePrice = moduleDocs.reduce((sum, module) => sum + module.price, 0);
+    const discountAmount = (totalModulePrice * COURSE_DISCOUNT_PERCENTAGE) / 100;
+    const price = totalModulePrice - discountAmount;
+    const sell_price = price + (price * COURSE_PRICE_CHARGE_PERCENTAGE) / 100;
 
-      // 🔥 Calculate Price & Sell Price
-  
-      const totalModulePrice = moduleDocs.reduce((sum, module) => sum + module.price, 0);
-      const discountAmount = (totalModulePrice * COURSE_DISCOUNT_PERCENTAGE) / 100;
-      const price = totalModulePrice - discountAmount;
-      const sell_price = price + (price * COURSE_PRICE_CHARGE_PERCENTAGE) / 100;
-
-    // Create new course
+    // Create course
     const newCourse = new Course({
       title,
       description,
-      modules,
+      modules: moduleIds,
       teacherId,
-      thumbnail: thumbnailUrl, // Use the default or uploaded URL
+      thumbnail: thumbnailUrl,
       level,
       price,
       sell_price
@@ -92,12 +91,12 @@ exports.createCourse = async (req, res) => {
     await Teacher.findByIdAndUpdate(teacherId, { $inc: { course_created: 1 } });
 
     res.status(201).json({ message: "Course created successfully", course: newCourse });
-
   } catch (error) {
     console.error("Error creating course:", error);
     res.status(500).json({ error: "Server error" });
   }
 };
+
 
 /**
  * @desc Get all courses (Public)
