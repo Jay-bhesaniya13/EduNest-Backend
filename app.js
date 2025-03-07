@@ -7,6 +7,7 @@ const cron = require("node-cron");
 const Course = require("./models/Course"); // Import Course model
 
 const moduleRoutes = require("./routes/moduleRoutes");
+const courseRoutes = require("./routes/courseRoutes")
 const teacherRoutes = require("./routes/teacherRoutes");
 const questionRoutes = require("./routes/questionRoutes");
 const enrollmentRoutes = require("./routes/enrollmentRoutes");
@@ -39,6 +40,7 @@ app.get("/", (req, res) => {
  
 
 // Routes 
+app.use("/api/course",courseRoutes);
 app.use("/api/student", studentRoutes);
 app.use("/api/reward", rewardRoutes);
 app.use("/api/client",clientRoutes);
