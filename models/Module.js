@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+require('dotenv').config();
 
 const moduleSchema = new mongoose.Schema(
   {
@@ -42,7 +43,7 @@ moduleSchema.methods.calculateDuration = async function () {
 moduleSchema.pre("save", async function (next) {
   await this.calculateDuration();
   
-  const COURSE_PRICE_CHARGE_PERCENTAGE = process.env.COURSE_PRICE_CHARGE_PERCENTAGE || 0;
+  const COURSE_PRICE_CHARGE_PERCENTAGE = process.env.COURSE_PRICE_CHARGE_PERCENTAGE || 10;
   this.sell_price = this.price + (this.price * COURSE_PRICE_CHARGE_PERCENTAGE) / 100;
 
   next();
