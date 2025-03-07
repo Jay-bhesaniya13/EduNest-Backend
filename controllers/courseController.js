@@ -130,6 +130,10 @@ exports.getCourseById = async (req, res) => {
     const course = await Course.findById(courseId).populate("modules");
     if (!course) return res.status(404).json({ message: "Course not found" });
 
+    console.log("course.teacherId.toString()" +course.teacherId.toString()  )
+    console.log("teacherId"+teacherId)
+    console.log("course.teacherId.toString() !== teacherId"+course.teacherId.toString() !== teacherId)
+    
     if (course.teacherId.toString() !== teacherId) {
       return res.status(403).json({ message: "You are not authorized to view this course" });
     }
