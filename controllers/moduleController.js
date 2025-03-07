@@ -17,21 +17,28 @@ exports.createModule = async (req, res) => {
       return res.status(400).json({ message: "Some content IDs are invalid or missing." });
     }
 
-    // Create new module (duration and sell_price will be auto-calculated in pre-save hook)
+    // Calculate sell_price manually
+    const COURSE_PRICE_CHARGE_PERCENTAGE = process.env.COURSE_PRICE_CHARGE_PERCENTAGE || 10;
+    const sell_price = price + (price * COURSE_PRICE_CHARGE_PERCENTAGE) / 100;
+
+    // Create new module with calculated sell_price
     const newModule = new Module({
       title,
       content,
       teacherId,
       price,
+      sell_price, // Ensure sell_price is set before saving
       prerequisites,
     });
 
     await newModule.save();
     res.status(201).json({ message: "Module created successfully", module: newModule });
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 // Get all modules
 exports.getAllModules = async (req, res) => {
