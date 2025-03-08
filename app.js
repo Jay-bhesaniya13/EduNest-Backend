@@ -30,7 +30,14 @@ const PORT = process.env.PORT || 5000;
 // Middleware to parse JSON bodies
 app.use(express.json());
 
-app.use(cors({ origin: "*" }));
+// app.use(cors({ origin: "*" }));
+app.use(cors({
+  origin: "*", // Or specify your frontend domain e.g. "https://yourfrontend.com"
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true // Enable if your frontend uses cookies or auth tokens
+}));
+
 
 //  for monthly bonus automatic
 require("./schedulers/monthlyBonus");
