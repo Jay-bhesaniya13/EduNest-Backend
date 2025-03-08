@@ -1,5 +1,6 @@
 const Quiz = require("../models/Quiz");
 const Question = require("../models/Question");
+const LeaderBoard=require("../models/LeaderBoard")
 
 // Create a new quiz (Admin only) - Also creates a leaderboard
 exports.createQuiz = async (req, res) => {
@@ -22,9 +23,7 @@ exports.createQuiz = async (req, res) => {
 
       await newQuiz.save();
 
-      // ✅ Automatically create a leaderboard for the quiz
-      await Leaderboard.create({ quizId: newQuiz._id, topStudents: [] });
-
+       
       res.status(201).json({ message: "Quiz created successfully", quiz: newQuiz });
   } catch (error) {
       res.status(500).json({ error: error.message });

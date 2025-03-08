@@ -16,6 +16,9 @@ const rewardRoutes = require("./routes/rewardRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const contentRoutes = require("./routes/contentRoutes");
 const quizRoutes = require("./routes/quizRoutes");
+const attemptedQuizRoutes=require("./routes/attemptedQuizRoutes");
+const quizAttemptRoutes=require("./routes/quizAttemptRoutes");
+const leaderboardRoutes=require("./routes/leaderBoardRoutes");
 
 const clientRoutes=require("./routes/clientroutes")
 
@@ -51,7 +54,9 @@ app.use("/api/enrollment", enrollmentRoutes);
 app.use("/api/question", questionRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/content", contentRoutes);
-
+app.use("/api/leaderboard",leaderboardRoutes);//for leaderboard
+app.use("/api/attemptedquiz",attemptedQuizRoutes);//for attempted quiz
+app.use("/api/quizattempt",quizAttemptRoutes);//for submit quiz
 
 
 // Default route for handling undefined routes
@@ -67,14 +72,12 @@ app.use((req, res) => {
 // .then(() => console.log("Connected to MongoDB"))
 // .catch((err) => console.log("Failed to connect to MongoDB:", err));
 
-
 // Connect to MongoDB to global 
 
 mongoose
   .connect(Mongo_URI)
   .then(() => console.log("✅ MongoDB Connected Successfully!"))
   .catch((err) => console.log("Failed to connect to MongoDB:", err));
-
 
 
 // 🕒 Cron Job: Updates sales data on the 1st of every month at 00:00

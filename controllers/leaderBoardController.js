@@ -1,6 +1,6 @@
 const Leaderboard = require("../models/LeaderBoard");
-const Quiz = require("../models/quiz");
-const Student = require("../models/student");
+const Quiz = require("../models/Quiz");
+const Student = require("../models/Student");
 
 // Get leaderboard for a specific quiz
 exports.getLeaderboard = async (req, res) => {

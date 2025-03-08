@@ -4,7 +4,7 @@ const Admin = require("./Admin");
 const Leaderboard = require("./LeaderBoard");
 
 const quizSchema = new mongoose.Schema({
-    topic: { type: String },
+    topic: { type: String, required: true },
     description: { type: String },
     admin: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", required: true },
     questions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Question", required: true }],
@@ -12,7 +12,8 @@ const quizSchema = new mongoose.Schema({
     duration: { type: Number, required: true }, // Duration in minutes
     createdAt: { type: Date, default: Date.now },
     startAt: { type: Date, required: true }, // Date and Time
-    rewardPoints: { type: Number, required: true }
+    rewardPoints: { type: Number, required: true },
+    leaderboard: { type: mongoose.Schema.Types.ObjectId, ref: "Leaderboard" } // Reference to the leaderboard
 });
 
 // Pre-save hook to calculate totalMarks and create a leaderboard
@@ -23,7 +24,8 @@ quizSchema.pre("save", async function (next) {
 
         // Create leaderboard if it's a new quiz
         if (this.isNew) {
-            await Leaderboard.create({ quizId: this._id, topStudents: [] });
+            const leaderboard = await Leaderboard.create({ quizId: this._id, topStudents: [] });
+            this.leaderboard = leaderboard._id; // Store leaderboard reference
         }
 
         next();

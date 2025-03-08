@@ -2,19 +2,19 @@ const Student = require("../models/Student");
 const Quiz = require("../models/Quiz");
 const Question = require("../models/Question");
 const Leaderboard = require("../models/LeaderBoard");
- 
- 
+
+
 // ✅ Submit Quiz Attempt
 exports.submitQuizAttempt = async (req, res) => {
     try {
-        const { quizId, answers } = req.body; // answers: [{ questionId, selectedAnswerIndex }]
-        const studentId = req.student.id; // Extracted from token
+        const { quizId, answers, timeTaken } = req.body; // 🟢 Accept `timeTaken` from request
+        const studentId = req.studentId;
 
-        if (!quizId || !answers || !Array.isArray(answers)) {
-            return res.status(400).json({ message: "Quiz ID and answers array are required." });
+        if (!quizId || !answers || !Array.isArray(answers) || timeTaken === undefined) {
+            return res.status(400).json({ message: "Quiz ID, answers array, and timeTaken are required." });
         }
 
-        // ✅ Fetch quiz and validate
+        // ✅ Fetch the quiz
         const quiz = await Quiz.findById(quizId);
         if (!quiz) return res.status(404).json({ message: "Quiz not found." });
 
@@ -39,9 +39,7 @@ exports.submitQuizAttempt = async (req, res) => {
             }
         });
 
-        const timeTaken = Math.floor((Date.now() - req.student.startTime) / 1000); // Example: Calculate time in seconds
-
-        // ✅ Fetch student
+        // ✅ Fetch the student
         const student = await Student.findById(studentId);
         if (!student) return res.status(404).json({ message: "Student not found." });
 
@@ -90,6 +88,7 @@ exports.submitQuizAttempt = async (req, res) => {
         });
 
     } catch (error) {
+        console.error("Error:", error);
         res.status(500).json({ message: "Server error", error });
     }
 };
