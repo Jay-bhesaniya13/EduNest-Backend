@@ -1,29 +1,33 @@
 const Quiz = require("../models/Quiz");
 const Question = require("../models/Question");
 
-// ✅ Create a new quiz (Admin only)
+// Create a new quiz (Admin only) - Also creates a leaderboard
 exports.createQuiz = async (req, res) => {
   try {
-    const { questions, topic, description, duration, startAt, rewardPoints } = req.body;
+      const { questions, topic, description, duration, startAt, rewardPoints } = req.body;
 
-    const questionDocs = await Question.find({ _id: { $in: questions } });
-    const totalPoints = questionDocs.reduce((sum, q) => sum + (q.point || 1), 0);
+      const questionDocs = await Question.find({ _id: { $in: questions } });
+      const totalMarks = questionDocs.reduce((sum, q) => sum + (q.marks || 1), 0);
 
-    const newQuiz = new Quiz({
-      admin: req.admin._id, // Assigning authenticated admin
-      questions,
-      topic,
-      description,
-      duration,
-      startAt,
-      rewardPoints,
-      totalPoints
-    });
+      const newQuiz = new Quiz({
+          admin: req.admin._id,
+          questions,
+          topic,
+          description,
+          duration,
+          startAt,
+          rewardPoints,
+          totalMarks
+      });
 
-    await newQuiz.save();
-    res.status(201).json({ message: "Quiz created successfully", quiz: newQuiz });
+      await newQuiz.save();
+
+      // ✅ Automatically create a leaderboard for the quiz
+      await Leaderboard.create({ quizId: newQuiz._id, topStudents: [] });
+
+      res.status(201).json({ message: "Quiz created successfully", quiz: newQuiz });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message });
   }
 };
 
