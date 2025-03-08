@@ -39,6 +39,11 @@ exports.registerStudent = async (req, res) => {
     // 🔹 Hash the password before saving
     const hashedPassword = await bcrypt.hash(password, 10);
 
+
+    // 🔹 Generate Profile Picture with First Letter
+    const firstLetter = name.charAt(0).toUpperCase();
+    profilepicURL = `https://api.dicebear.com/8.x/initials/svg?seed=${firstLetter}`;
+
     // 🔹 Generate OTP
     const otp = generateOTP();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // OTP expires in 10 minutes
@@ -231,15 +236,25 @@ exports.getStudentProfile = async (req, res) => {
   }
 };
 
- // ✅ **Update Authenticated Student Profile**
+// ✅ **Update Authenticated Student Profile**
 exports.updateStudentProfile = async (req, res) => {
   try {
-    const updatedStudent = await Student.findByIdAndUpdate(req.studentId, req.body, { new: true });
+    const { name, email, password, contactNumber, about, skills, city } = req.body;
+    const updateFields = { email, password, contactNumber, about, skills, city };
+
+    if (name) {
+      const firstLetter = name.charAt(0).toUpperCase();
+      updateFields.profilepicURL = `https://api.dicebear.com/8.x/initials/svg?seed=${firstLetter}`;
+      updateFields.name = name;
+    }
+
+    const updatedStudent = await Student.findByIdAndUpdate(req.studentId, updateFields, { new: true });
     res.status(200).json(updatedStudent);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 
 // Controller to delete a student (set `isActive` to false)
