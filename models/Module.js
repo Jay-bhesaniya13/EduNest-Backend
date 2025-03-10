@@ -20,6 +20,13 @@ const moduleSchema = new mongoose.Schema(
     monthlySales: { type: Number, default: 0 },
     sixMonthSales: { type: Number, default: 0 },
     yearlySales: { type: Number, default: 0 },
+
+
+    totalSellPrice: { type: Number, default: 0 },
+lastMonthSellPrice: { type: Number, default: 0 },
+last6MonthSellPrice: { type: Number, default: 0 },
+lastYearSellPrice: { type: Number, default: 0 },
+
   },
   { timestamps: true }
 );

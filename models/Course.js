@@ -33,6 +33,12 @@ const courseSchema = new mongoose.Schema({
   lastMonthSell: { type: Number, default: 0 },
   last6MonthSell: { type: Number, default: 0 },
   lastYearSell: { type: Number, default: 0 },
+  
+  totalSellPrice: { type: Number, default: 0 },
+lastMonthSellPrice: { type: Number, default: 0 },
+last6MonthSellPrice: { type: Number, default: 0 },
+lastYearSellPrice: { type: Number, default: 0 },
+
 });
 
 // Pre-save hook to calculate final course price

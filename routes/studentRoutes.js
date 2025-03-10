@@ -8,7 +8,8 @@ const {
   getStudentProfile,
   updateStudentProfile,  
   deactivateStudent,
-  getAllStudents
+  getAllStudents,
+  enrolledCoursesForStudent
 } = require("../controllers/studentController");
 
 const { authenticateStudent } = require("../controllers/authController");
@@ -25,7 +26,9 @@ router.post("/resend-otp", resendOTP);      // Resend OTP if expired
 router.get("/profile",authenticateStudent, getStudentProfile);
 router.put("/profile", authenticateStudent, updateStudentProfile);
 router.delete("/deactivate",authenticateStudent, deactivateStudent);
- 
+
+router.get("/get-enrollment" , authenticateStudent , enrolledCoursesForStudent );
+
 // to retrive all students by admin ( later on add authorization for admin )
 router.get("/admin13", getAllStudents);
 

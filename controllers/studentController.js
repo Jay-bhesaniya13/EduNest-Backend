@@ -40,10 +40,12 @@ exports.registerStudent = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
 
-    // 🔹 Generate Profile Picture with First Letter
-    const firstLetter = name.charAt(0).toUpperCase();
-    profilepicURL = `https://api.dicebear.com/8.x/initials/svg?seed=${firstLetter}`;
-
+    // 🔹 Generate Profile Picture with Initial Letter
+    if (name) {
+      const initials = name.slice(0, 2).toUpperCase(); // First two letters
+      updateFields.profilepicURL = `https://api.dicebear.com/8.x/initials/svg?seed=${initials}`;
+      updateFields.name = name;
+    }
     // 🔹 Generate OTP
     const otp = generateOTP();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // OTP expires in 10 minutes
@@ -243,8 +245,8 @@ exports.updateStudentProfile = async (req, res) => {
     const updateFields = { email, password, contactNumber, about, skills, city };
 
     if (name) {
-      const firstLetter = name.charAt(0).toUpperCase();
-      updateFields.profilepicURL = `https://api.dicebear.com/8.x/initials/svg?seed=${firstLetter}`;
+      const initials = name.slice(0, 2).toUpperCase(); // First two letters
+      updateFields.profilepicURL = `https://api.dicebear.com/8.x/initials/svg?seed=${initials}`;
       updateFields.name = name;
     }
 
@@ -294,5 +296,29 @@ exports.getAllStudents = async (req, res) => {
     res.status(200).json(students);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+exports.enrolledCoursesForStudent = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    if (!studentId) {
+      return res.status(400).json({ message: "Student ID is required" });
+    }
+
+    const student = await Student.findById(studentId).select("courses_enrolled");
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    res.status(200).json({
+      courses_enrolled: student.courses_enrolled,
+      total_courses_enrolled: student.courses_enrolled.length,
+    });
+  } catch (error) {
+    console.error("Error fetching enrolled courses:", error);
+    res.status(500).json({ error: "Server error" });
   }
 };

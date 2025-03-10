@@ -1,7 +1,7 @@
 const express = require("express");
 const {
   coursePurchaseEnrollment,
-  createEnrollmentModules,
+  createEnrollmentModule,
   getAllEnrollments,
   getEnrollmentById,
   updateEnrollment,
@@ -9,13 +9,15 @@ const {
   getEnrolledStudents
 } = require("../controllers/enrollmentController");
 
+const { authenticateStudent } = require("../controllers/authController");
+
 const router = express.Router();
 
 // create new Enrollment for whole course with discounted price
-router.post("/create/course", coursePurchaseEnrollment);
+router.post("/course", authenticateStudent, coursePurchaseEnrollment);
 
 // Create or update enrollment (No restrictions, any user can enroll)
-router.post("/create/module", createEnrollmentModules);
+router.post("/module", authenticateStudent , createEnrollmentModule);
 
 // Get all enrollments (Requires adminId as query param)
 router.get("/", getAllEnrollments); 

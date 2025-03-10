@@ -1,173 +1,317 @@
 const Enrollment = require("../models/Enrollment");
 const Course = require("../models/Course");
 const Module = require("../models/Module");
-const BalanceHistory = require("../models/BalanceHistory");
 const Teacher = require("../models/Teacher");
-const Transaction = require("../models/Transaction");
-const AccountIncome = require("../models/AccountIncome");
+const Student = require("../models/Student");
+const BalanceHistory = require("../models/BalanceHistory");
 const dotenv = require("dotenv");
+const mongoose = require("mongoose");
+
 dotenv.config();
 const { COURSE_DISCOUNT_PERCENTAGE } = process.env.COURSE_DISCOUNT_PERCENTAGE;
 
+
+// Work flow for course Purchase
+
+// ✅ Validates input parameters
+// ✅ Checks if the course and student exist and are active
+// ✅ Verifies if the student is already enrolled
+// ✅ Deducts sell_price from student’s reward points
+// ✅ Enrolls the student in the course and all its modules
+// ✅ Updates sales tracking for course and modules
+// ✅ Increments teacher’s balance and logs balance history
+// ✅ Uses transactions to rollback in case of failure
+
 // Enroll student in all modules of a course with discounted price
 exports.coursePurchaseEnrollment = async (req, res) => {
+  const session = await mongoose.startSession(); // 🔹 Start a transaction session
+
   try {
-    const { studentId, courseId } = req.body;
+    session.startTransaction();
+    const { courseId } = req.body;
+    const studentId = req.studentId;
+
+    console.log("Student ID:", studentId);
+    console.log("Course ID:", courseId);
 
     if (!studentId || !courseId) {
-      return res.status(400).json({ message: "studentId and courseId are required" });
+      return res.status(400).json({ message: "Student ID and Course ID are required" });
     }
 
-    const student = await Student.findById(studentId);
+    // ✅ Fetch Student
+    const student = await Student.findById(studentId).session(session);
     if (!student) return res.status(404).json({ message: "Student not found" });
     if (!student.isActive) return res.status(403).json({ message: "Student is deactivated and cannot enroll" });
 
-    const course = await Course.findById(courseId).populate("modules");
+    // ✅ Fetch Course with Modules
+    const course = await Course.findById(courseId).populate("modules").session(session);
     if (!course) return res.status(404).json({ message: "Course not found" });
 
     const teacherId = course.teacherId;
-    
-    const modules = course.modules.map((module) => ({
-      moduleId: module._id,
-      price: module.price - (module.price * COURSE_DISCOUNT_PERCENTAGE) / 100,
-    }));
+    const modules = course.modules.map((module) => module._id);
+    const coursePrice = course.price; // ✅ Base price for teacher
+    const courseSellPrice = course.sell_price; // ✅ Price deducted from student
 
     if (modules.length === 0) {
       return res.status(400).json({ message: "No modules found in this course" });
     }
 
-    let enrollment = await Enrollment.findOne({ student: studentId, course: courseId });
-    if (enrollment) {
+    // ✅ Check if student is already enrolled
+    const existingEnrollment = await Enrollment.findOne({ studentId, courseId }).session(session);
+    if (existingEnrollment) {
       return res.status(400).json({ message: "Student is already enrolled in this course" });
     }
 
+    // ✅ Check if student has enough reward points
+    if (student.rewardPoints < courseSellPrice) {
+      return res.status(400).json({ message: "Not enough reward points to purchase this course" });
+    }
+
+    // ✅ Deduct Reward Points from Student
+    student.rewardPoints -= courseSellPrice;
+    await student.save({ session });
+
+    // ✅ Create Enrollment
     const newEnrollment = new Enrollment({
-      student: studentId,
-      course: courseId,
-      modules: modules.map((mod) => mod.moduleId),
-      modulePrices: modules.map((mod) => mod.price),
+      studentId,
+      courseId,
+      moduleIds: modules,
     });
-    await newEnrollment.save();
+    await newEnrollment.save({ session });
+    console.log("✅ enroll completed of course");
 
-    const moduleIds = modules.map((mod) => mod.moduleId);
+    // ✅ Update Student's Enrollment
+    await Student.enrollCourse(studentId, courseId, modules, session);
 
-    // Update student document
-    await Student.findByIdAndUpdate(studentId, {
-      $addToSet: { courses_enrolled: courseId, modules_enrolled: { $each: moduleIds } }
-    });
+    console.log("✅ enroll completed in student object");
 
-    await Course.findByIdAndUpdate(courseId, { $inc: { totalSales: 1, monthlySales: 1, sixMonthSales: 1, yearlySales: 1 } });
+    // ✅ Update Course Sales Stats (Including Sell Price)
+    await Course.findByIdAndUpdate(courseId, {
+      $inc: {
+        totalSell: 1,
+        lastMonthSell: 1,
+        last6MonthSell: 1,
+        lastYearSell: 1,
+        totalSellPrice: courseSellPrice, // ✅ Track total sell price
+        lastMonthSellPrice: courseSellPrice,
+        last6MonthSellPrice: courseSellPrice,
+        lastYearSellPrice: courseSellPrice,
+      },
+    }, { session });
 
-    for (let mod of modules) {
-      await Module.findByIdAndUpdate(mod.moduleId, { $inc: { totalSales: 1, monthlySales: 1, sixMonthSales: 1, yearlySales: 1 } });
+
+
+    // ✅ Update Module Sales Stats (Including Sell Price)
+    for (let mod of course.modules) {
+      await Module.findByIdAndUpdate(mod._id, {
+        $inc: {
+          totalSales: 1,
+          monthlySales: 1,
+          sixMonthSales: 1,
+          yearlySales: 1,
+          totalSellPrice: mod.sell_price, // ✅ Track module's sell price
+          lastMonthSellPrice: mod.sell_price,
+          last6MonthSellPrice: mod.sell_price,
+          lastYearSellPrice: mod.sell_price,
+        }
+      }, { session });
     }
 
+    // ✅ Update Teacher's Balance
+    const teacher = await Teacher.findById(teacherId).session(session);
+    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
 
-    // ✅ Update Teacher's Balance & BalanceHistory
-    const teacher = await Teacher.findById(teacherId);
-    if (!teacher) {
-      return res.status(404).json({ message: "Teacher not found" });
-    }
+    teacher.balance += coursePrice; // ✅ Add Base Price to Teacher's Balance
+    await teacher.save({ session });
 
-    // Add total original price of modules to teacher's balance
-    const totalOriginalPrice = modules.reduce((sum, mod) => sum + mod.originalPrice, 0);
-    teacher.balance += totalOriginalPrice;
-    await teacher.save();
-
-    let balanceHistory = await BalanceHistory.findOne({ teacherId });
+    // ✅ Update Balance History
+    let balanceHistory = await BalanceHistory.findOne({ teacherId }).session(session);
     if (!balanceHistory) {
-      balanceHistory = new BalanceHistory({ teacherId, historyIncome: [], historyExpense: [] });
+      balanceHistory = new BalanceHistory({ teacherId, historyIncome: [] });
     }
 
     balanceHistory.historyIncome.push({
-      income: totalOriginalPrice ,
-      reason: `Full ${course.title} enrolled by ${student.name}`,
-      date,
+      income: coursePrice,
+      reason: `Course ${course.title} purchased by ${student.name}`,
+      date: new Date(),
     });
 
-    await balanceHistory.save();
+    await balanceHistory.save({ session });
 
-    res.status(201).json({ message: "Course purchased successfully", enrollment: newEnrollment });
+    // ✅ Commit Transaction (Final Confirmation)
+    await session.commitTransaction();
+    session.endSession();
+
+    // ✅ Response
+    res.status(201).json({
+      message: "Course purchased successfully",
+      enrollment: newEnrollment,
+      studentRewardPoints: student.rewardPoints,
+      teacherBalance: teacher.balance,
+    });
+
   } catch (error) {
-    console.error("Error in course purchase enrollment:", error);
-    res.status(500).json({ error: "Server error" });
+    await session.abortTransaction(); // 🔴 Rollback all changes if any error occurs
+    session.endSession();
+
+    console.error("❌ Error in course purchase enrollment:", error);
+    res.status(500).json({ error: "Server error, transaction failed" });
   }
 };
 
 
-// Create enrollment for selected modules
-exports.createEnrollmentModules = async (req, res) => {
-  try {
-    const { studentId, courseId, modules } = req.body;
+// Work flow for Module purchase of Purchase
 
-    if (!studentId || !courseId || !modules || modules.length === 0) {
-      return res.status(400).json({ message: "studentId, courseId & modules are required" });
+// 1. Validate input: Ensure studentId, courseId, and moduleId are provided.
+// 2. Fetch Student, Course, and Module: Ensure all exist and are active.
+// 3. Check if the module belongs to the course.
+// 4. Check student’s reward points: Ensure they have enough to buy the module.
+// 5. Deduct sell_price from student's reward points.
+// 6. Enroll the student in the module:
+//     * If the student is not enrolled in the course, create a new enrollment.
+//     * If the student is already enrolled, add the module (if not already enrolled).
+// 7. Update module sales stats (totalSellPrice, etc.).
+// 8. Update teacher’s balance and balance history.
+// 9. Commit transaction.
+// 10.  If any error occurs, rollback everything.
+
+// Enroll student in a specific module
+exports.createEnrollmentModule = async (req, res) => {
+  const session = await mongoose.startSession(); // 🔹 Start a transaction session
+  session.startTransaction();
+
+  try {
+    const { courseId, moduleId } = req.body;
+    const studentId = req.studentId;
+
+    console.log("Student ID:", studentId);
+    console.log("Course ID:", courseId);
+    console.log("Module Id:" + moduleId);
+
+    if (!studentId || !courseId || !moduleId) {
+      return res.status(400).json({ message: "studentId, courseId & moduleId are required" });
     }
 
-    const student = await Student.findById(studentId);
+    const student = await Student.findById(studentId).session(session);
     if (!student) return res.status(404).json({ message: "Student not found" });
     if (!student.isActive) return res.status(403).json({ message: "Student is deactivated and cannot enroll" });
 
-    const existingCourse = await Course.findById(courseId);
-    if (!existingCourse) return res.status(404).json({ message: "Course not found" });
+    let course = await Course.findById(courseId).populate("modules").session(session);
+    if (!course) return res.status(404).json({ message: "Course not found" });
 
-    const teacherId = existingCourse.teacherId;
-     
-    let enrollment = await Enrollment.findOne({ student: studentId, course: courseId });
-    if (enrollment) {
-      for (let module of modules) {
-        if (!enrollment.modules.includes(module.moduleId)) {
-          sell_price+=module.sell_price;
-          price+=module.price;
-          enrollment.modules.push(module.moduleId);
-          await Module.findByIdAndUpdate(module.moduleId, { $inc: { totalSales: 1, monthlySales: 1, sixMonthSales: 1, yearlySales: 1 } });
-        }
+    let module = await Module.findById(moduleId).session(session);
+    if (!module) return res.status(404).json({ message: "Module not found" });
+
+    // ✅ Ensure the module belongs to the provided course
+    const moduleExists = course.modules.some(module => module._id.toString() === moduleId);
+
+    if (!moduleExists) {
+      return res.status(400).json({ message: "Module does not belong to the provided course" });
+    }
+
+
+    const teacherId = course.teacherId;
+    const moduleSellPrice = module.sell_price;
+    const modulePrice = module.price; // Base price for teacher earnings
+
+    // ✅ Check if student has enough reward points
+    if (student.rewardPoints < moduleSellPrice) {
+      return res.status(400).json({ message: "Not enough reward points to enroll in this module" });
+    }
+
+    // ✅ Deduct `sell_price` from student's reward points
+    student.rewardPoints -= moduleSellPrice;
+
+    // ✅ Update student's enrolled courses/modules list
+     await Student.enrollModule(studentId, courseId, module, session);
+
+    await student.save({ session }); // ✅ Ensure session is used
+
+    // 🔹 Check if student is already enrolled in the course
+    let enrollment = await Enrollment.findOne({ student: studentId, course: courseId }).session(session);
+
+
+     if (!enrollment) {
+       
+      let ModuleId;
+      if (!Array.isArray(moduleId)) {
+         ModuleId = [moduleId]; // Convert to array if it's not already one
       }
-      await enrollment.save();
-    } else {
+       
       enrollment = new Enrollment({
-        student: studentId,
-        course: courseId,
-        modules: modules.map((module) => module.moduleId),
-        modulePrices: modules.map((module) => module.price),
+         studentId,
+         courseId,
+         moduleIds: ModuleId // ✅ Ensure it's an array
       });
-      await enrollment.save();
+      await enrollment.save({ session });
+    } else {
+      // ✅ If already enrolled, check if the module is already added
+      if (!enrollment.modules.includes(moduleId)) {
+        enrollment.modules.push(moduleId);
+         // ✅ Update module sales tracking stats
+        await Module.findByIdAndUpdate(moduleId, {
+          $inc: {
+            totalSales: 1,
+            monthlySales: 1,
+            sixMonthSales: 1,
+            yearlySales: 1,
+            totalSellPrice: moduleSellPrice,
+            lastMonthSellPrice: moduleSellPrice,
+            last6MonthSellPrice: moduleSellPrice,
+            lastYearSellPrice: moduleSellPrice,
+          }
+        }, { session });
+        await enrollment.save({ session });
+      } else {
+        return res.status(400).json({ message: "Module already enrolled" });
+      }
     }
- 
 
-    // ✅ Update Teacher's Balance & BalanceHistory
-    const teacher = await Teacher.findById(teacherId);
-    if (!teacher) {
-      return res.status(404).json({ message: "Teacher not found" });
-    }
-  
+    console.log("✅ enroll completed of course-module");
 
-    // Add total original price of modules to teacher's balance
-    const totalOriginalPrice = modules.reduce((sum, mod) => sum + mod.originalPrice, 0);
-    teacher.balance += totalOriginalPrice;
-    await teacher.save();
+    // ✅ Update Teacher's Balance
+    const teacher = await Teacher.findById(teacherId).session(session);
+    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
 
- 
+    teacher.balance += modulePrice;
+    await teacher.save({ session });
 
-    let balanceHistory = await BalanceHistory.findOne({ teacherId });
+    // ✅ Update Teacher’s Balance History
+    let balanceHistory = await BalanceHistory.findOne({ teacherId }).session(session);
     if (!balanceHistory) {
       balanceHistory = new BalanceHistory({ teacherId, historyIncome: [], historyExpense: [] });
     }
 
     balanceHistory.historyIncome.push({
-      income: transactionAmount,
-      reason: `Modules from ${existingCourse.title} enrolled by ${student.name}`,
-      date,
+      income: modulePrice,
+      reason: `Module '${module.title}' from '${course.title}' enrolled by ${student.name}`,
+      date: new Date(),
     });
 
-    await balanceHistory.save();
+    await balanceHistory.save({ session });
 
-    res.status(200).json({ message: "Modules added to enrollment successfully", enrollment });
+    // ✅ Commit Transaction (Final Confirmation)
+    await session.commitTransaction();
+    session.endSession();
+
+    // ✅ Response
+    res.status(200).json({
+      message: "Module enrolled successfully, reward points deducted",
+      enrollment,
+      studentRewardPoints: student.rewardPoints,
+      teacherBalance: teacher.balance,
+    });
+
   } catch (error) {
-    console.error("Error creating enrollment:", error);
-    res.status(500).json({ error: "Server error" });
+    await session.abortTransaction(); // 🔴 Rollback all changes if any error occurs
+    session.endSession();
+
+    console.error("❌ Error in module enrollment:", error);
+    res.status(500).json({ error: "Server error, enrollment failed" });
   }
 };
+
+
 
 
 
