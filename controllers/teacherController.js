@@ -13,7 +13,7 @@ function otpGenerator() {
   return Math.floor(100000 + Math.random() * 900000);
 }
 
- // **2. Register Teacher (Temporary Storage)**
+// **2. Register Teacher (Temporary Storage)**
 exports.registerTeacher = async (req, res) => {
   try {
     const { name, email, password, contactNumber, profilepicURL, about, areas_of_expertise, city } = req.body;
@@ -36,8 +36,8 @@ exports.registerTeacher = async (req, res) => {
     const otp = otpGenerator();
     const otpExpiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
 
-    const tempTeacher = new TempTeacher({ 
-      name, email, password: hashedPassword, contactNumber, profilepicURL, about, areas_of_expertise, city, otp, otpExpiresAt 
+    const tempTeacher = new TempTeacher({
+      name, email, password: hashedPassword, contactNumber, profilepicURL, about, areas_of_expertise, city, otp, otpExpiresAt
     });
 
     await tempTeacher.save();
@@ -66,7 +66,7 @@ exports.registerTeacher = async (req, res) => {
 };
 
 
- // **3. Verify OTP & Move Data to Teacher Collection**
+// **3. Verify OTP & Move Data to Teacher Collection**
 exports.verifyTeacherOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -80,16 +80,16 @@ exports.verifyTeacherOTP = async (req, res) => {
       return res.status(400).json({ error: "Invalid OTP or expired. Please register again." });
     }
 
-    const newTeacher = new Teacher({ 
-      name: tempTeacher.name, 
-      email: tempTeacher.email, 
-      password: tempTeacher.password, 
-      contactNumber: tempTeacher.contactNumber, 
-      profilepicURL: tempTeacher.profilepicURL, 
-      about: tempTeacher.about, 
-      areas_of_expertise: tempTeacher.areas_of_expertise, 
-      city: tempTeacher.city, 
-      join_date: new Date() 
+    const newTeacher = new Teacher({
+      name: tempTeacher.name,
+      email: tempTeacher.email,
+      password: tempTeacher.password,
+      contactNumber: tempTeacher.contactNumber,
+      profilepicURL: tempTeacher.profilepicURL,
+      about: tempTeacher.about,
+      areas_of_expertise: tempTeacher.areas_of_expertise,
+      city: tempTeacher.city,
+      join_date: new Date()
     });
 
     await newTeacher.save();
@@ -124,7 +124,7 @@ exports.verifyTeacherOTP = async (req, res) => {
 };
 
 
- // **4. Resend OTP**
+// **4. Resend OTP**
 exports.resendTeacherOTP = async (req, res) => {
   try {
     const { email } = req.body;
@@ -173,7 +173,7 @@ exports.loginTeacher = async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials." });
     }
 
-    const token = jwt.sign({ id: teacher._id, email: teacher.email }, jwtSecret , { expiresIn: "7d" });
+    const token = jwt.sign({ id: teacher._id, email: teacher.email }, jwtSecret, { expiresIn: "7d" });
     res.json({ message: "Login successful.", token });
 
   } catch (error) {
@@ -199,10 +199,10 @@ exports.getTeacherProfile = async (req, res) => {
 // **7. Update Teacher's Own Profile**
 exports.updateTeacherProfile = async (req, res) => {
   try {
-    const teacherId=req.teacher.id;
+    const teacherId = req.teacher.id;
     // Define allowed fields
     const allowedFields = ["name", "contactNumber", "profilepicURL", "about", "areas_of_expertise", "city"];
-    
+
     // Filter request body to only include allowed fields
     const updatedData = {};
     Object.keys(req.body).forEach((key) => {
@@ -251,6 +251,18 @@ exports.deactivateTeacher = async (req, res) => {
 exports.getAllTeachers = async (req, res) => {
   try {
     const teachers = await Teacher.find();
+    res.status(200).json(teachers);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
+exports.getTeacherInfo = async (req, res) =>
+{
+  try {
+    const { teacherId } = req.params;
+    const teachers = await Teacher.find(teacherId);
     res.status(200).json(teachers);
   } catch (error) {
     res.status(500).json({ error: error.message });

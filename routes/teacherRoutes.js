@@ -8,9 +8,10 @@ const {
   getTeacherProfile,
   updateTeacherProfile,
   deactivateTeacher,
-  getAllTeachers
+  getAllTeachers,
+  getTeacherInfo
 } = require("../controllers/teacherController");
-const { authenticateTeacher } = require("../controllers/authController");
+const { authenticateTeacher, authenticateStudent } = require("../controllers/authController");
 
 const router = express.Router();
 
@@ -26,6 +27,9 @@ router.put("/profile", authenticateTeacher, updateTeacherProfile); // Update own
 router.delete("/deactivate", authenticateTeacher, deactivateTeacher); // Deactivate own account
 
 // to retrive all taechers by admin ( later on add authorization for admin )
+router.get("/teacherinfo/:teacherId",authenticateStudent,getTeacherInfo);
+
+
 router.get("/admin13", getAllTeachers);
 
 module.exports = router;
