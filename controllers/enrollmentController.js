@@ -273,6 +273,16 @@ exports.createEnrollmentModule = async (req, res) => {
     const teacher = await Teacher.findById(teacherId).session(session);
     if (!teacher) return res.status(404).json({ message: "Teacher not found" });
 
+    const updatedTeacher = await Teacher.findByIdAndUpdate(
+      teacherId,
+      { $addToSet: { enrolledStudents: studentId } }, // Ensures no duplicates
+      { new: true }
+    ).session(session) ;
+    if (!updatedTeacher) {
+      await session.abortTransaction();
+      return res.status(500).json({ message: "Error updating teacher's enrolled students" });
+    }
+    
     teacher.balance += modulePrice;
     await teacher.save({ session });
 
