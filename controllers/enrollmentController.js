@@ -278,11 +278,12 @@ exports.createEnrollmentModule = async (req, res) => {
       { $addToSet: { enrolledStudents: studentId } }, // Ensures no duplicates
       { new: true }
     ).session(session) ;
+    
     if (!updatedTeacher) {
       await session.abortTransaction();
       return res.status(500).json({ message: "Error updating teacher's enrolled students" });
     }
-    
+
     teacher.balance += modulePrice;
     await teacher.save({ session });
 
