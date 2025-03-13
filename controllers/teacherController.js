@@ -267,3 +267,23 @@ exports.getTeacherInfo = async (req, res) =>{
     res.status(500).json({ error: error.message });
 }
 };
+
+
+
+exports.getEnrolledStudents = async (req, res) => {
+  try {
+    const { teacherId } = req.teacher.id;
+
+    // Fetch teacher and populate enrolled students
+    const teacher = await Teacher.findById(teacherId).populate("enrolledStudents");
+
+    if (!teacher) {
+      return res.status(404).json({ message: "Teacher not found" });
+    }
+
+    res.status(200).json({ enrolledStudents: teacher.enrolledStudents });
+  } catch (error) {
+    console.error("Error fetching enrolled students:", error);
+    res.status(500).json({ error: "Server error while fetching enrolled students", errorMessage: error.message });
+  }
+};

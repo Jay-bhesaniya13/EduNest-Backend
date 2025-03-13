@@ -126,7 +126,6 @@ exports.getCourseById = async (req, res) => {
   try {
     const { courseId, } = req.params;
     // const teacherId = req.teacher._id;
-     console.log("**1***")
     const course = await Course.findById(courseId).populate("modules");
     if (!course) return res.status(404).json({ message: "Course not found" });
     

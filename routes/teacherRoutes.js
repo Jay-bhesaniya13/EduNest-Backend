@@ -9,7 +9,8 @@ const {
   updateTeacherProfile,
   deactivateTeacher,
   getAllTeachers,
-  getTeacherInfo
+  getTeacherInfo,
+  getEnrolledStudents
 } = require("../controllers/teacherController");
 const { authenticateTeacher, authenticateStudent } = require("../controllers/authController");
 
@@ -30,7 +31,7 @@ router.delete("/deactivate", authenticateTeacher, deactivateTeacher); // Deactiv
 
 router.get("/teacherinfo/:teacherId",authenticateStudent,getTeacherInfo);
 
-
+router.get("/enrolledstudents", authenticateTeacher, getEnrolledStudents);
 // to retrive all taechers by admin ( later on add authorization for admin )
 router.get("/admin13", getAllTeachers);
 

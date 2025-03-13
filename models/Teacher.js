@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const BalanceHistory = require("./BalanceHistory");
 
+
 const teacherSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
@@ -10,6 +11,8 @@ const teacherSchema = new mongoose.Schema({
   about: { type: String },
   areas_of_expertise: [{ type: String }],
   city: { type: String },
+
+  enrolledStudents: [{ type: mongoose.Schema.Types.ObjectId, ref: "Student" }], // Reference to Student model
   
   balance: { type: Number, default: 0 },
   totalEarning: { type: Number, default: 0 },
