@@ -137,7 +137,7 @@ exports.getCourseById = async (req, res) => {
     res.json(course);
   } catch (error) {
     console.error("Error fetching course:", error);
-    res.status(500).json({ error: "Server error in course get by id" });
+    res.status(500).json({ error: "Server error in course get by id",errormessage:error.message });
   }
 };
 
