@@ -272,11 +272,11 @@ exports.getTeacherInfo = async (req, res) =>{
 
 exports.getEnrolledStudents = async (req, res) => {
   try {
-    const { teacherId } = req.teacher.id;
-
+    const teacherId  = req.teacher._id;
+     
     // Fetch teacher and populate enrolled students
-    const teacher = await Teacher.findById(teacherId).populate("enrolledStudents");
-
+    const teacher = await Teacher.findById(teacherId);
+ 
     if (!teacher) {
       return res.status(404).json({ message: "Teacher not found" });
     }
