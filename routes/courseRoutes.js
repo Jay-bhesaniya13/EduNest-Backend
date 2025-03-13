@@ -17,7 +17,7 @@ router.post("/create", authenticateTeacher, createCourse);
 router.post("/add-module", authenticateTeacher, addModuleToCourse);
 router.put("/remove-module", authenticateTeacher, removeModuleFromCourse);
 
-router.get("/teacher/",  getAllCoursesForTeacher);
+router.get("/teacher/:teacherId",  getAllCoursesForTeacher);
 router.get("/:courseId/", getCourseById);
 router.put("/:courseId", authenticateTeacher, updateCourse);
 router.delete("/:courseId", authenticateTeacher, deleteCourse);
