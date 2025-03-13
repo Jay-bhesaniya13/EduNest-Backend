@@ -258,13 +258,12 @@ exports.getAllTeachers = async (req, res) => {
 };
 
 
-exports.getTeacherInfo = async (req, res) =>
-{
+exports.getTeacherInfo = async (req, res) =>{
   try {
     const { teacherId } = req.params;
-    const teachers = await Teacher.find(teacherId);
+    const teachers = await Teacher.find({ _id: teacherId }); // Pass as an object
     res.status(200).json(teachers);
-  } catch (error) {
+} catch (error) {
     res.status(500).json({ error: error.message });
-  }
+}
 };

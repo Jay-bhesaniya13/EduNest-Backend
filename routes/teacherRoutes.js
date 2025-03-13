@@ -26,10 +26,12 @@ router.get("/profile", authenticateTeacher, getTeacherProfile); // Get teacher's
 router.put("/profile", authenticateTeacher, updateTeacherProfile); // Update own profile
 router.delete("/deactivate", authenticateTeacher, deactivateTeacher); // Deactivate own account
 
-// to retrive all taechers by admin ( later on add authorization for admin )
+
+
 router.get("/teacherinfo/:teacherId",authenticateStudent,getTeacherInfo);
 
 
+// to retrive all taechers by admin ( later on add authorization for admin )
 router.get("/admin13", getAllTeachers);
 
 module.exports = router;
