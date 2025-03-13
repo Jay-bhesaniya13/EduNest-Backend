@@ -40,12 +40,12 @@ exports.registerStudent = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
 
-    // 🔹 Generate Profile Picture with Initial Letter
     if (name) {
       const initials = name.slice(0, 2).toUpperCase(); // First two letters
-      updateFields.profilepicURL = `https://api.dicebear.com/8.x/initials/svg?seed=${initials}`;
-      updateFields.name = name;
+      profilepicURL = `https://api.dicebear.com/8.x/initials/svg?seed=${initials}`;
+      name;
     }
+  
     // 🔹 Generate OTP
     const otp = generateOTP();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // OTP expires in 10 minutes
@@ -53,7 +53,7 @@ exports.registerStudent = async (req, res) => {
     // 🔹 Save OTP in a temporary collection
     await TemporaryOTP.findOneAndUpdate(
       { email },
-      { email, name, hashedPassword, contactNumber, profilepicURL, about, skills, city, otp, otpExpiry },
+      { email, name, hashedPassword,profilepicURL, contactNumber, about, skills, city, otp, otpExpiry },
       { upsert: true, new: true }
     );
 

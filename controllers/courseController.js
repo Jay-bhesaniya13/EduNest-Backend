@@ -129,15 +129,15 @@ exports.getCourseById = async (req, res) => {
 
     const course = await Course.findById(courseId).populate("modules");
     if (!course) return res.status(404).json({ message: "Course not found" });
- 
-    if (course.teacherId.toString() !== teacherId.toString()) {
-      return res.status(403).json({ message: "You are not authorized to view this course" });
-    }
+
+    // if (course.teacherId.toString() !== teacherId.toString()) {
+    //   return res.status(403).json({ message: "You are not authorized to view this course" });
+    // }
 
     res.json(course);
   } catch (error) {
     console.error("Error fetching course:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Server error in course get by id" });
   }
 };
 
@@ -149,8 +149,9 @@ exports.getCourseById = async (req, res) => {
  */
 exports.getAllCoursesForTeacher = async (req, res) => {
   try {
-    const teacherId = req.teacher._id;
+    // const teacherId = req.teacher._id;
 
+    const teacherId = req.params.teacherId;
     // Check if teacher exists
     const teacher = await Teacher.findById(teacherId);
     if (!teacher) return res.status(404).json({ message: "Teacher not found" });
@@ -183,7 +184,7 @@ exports.updateCourse = async (req, res) => {
       return res.status(403).json({ message: "You are not authorized to update this course" });
     }
 
-   
+
     let newThumbnailUrl = course.thumbnail;
 
     // Handle thumbnail update if a new file is provided
@@ -236,10 +237,10 @@ exports.updateCourse = async (req, res) => {
     // Update course details
     course.title = title || course.title;
     course.description = description || course.description;
-     course.thumbnail = newThumbnailUrl; // Updated thumbnail URL
+    course.thumbnail = newThumbnailUrl; // Updated thumbnail URL
     course.level = level || course.level;
 
-    
+
     await course.save();
     res.json({ message: "Course updated successfully", course });
   } catch (error) {

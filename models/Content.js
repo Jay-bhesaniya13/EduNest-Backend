@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 
 const contentSchema = new mongoose.Schema(
   {
-    type: {
+    // teacherId: { type: mongoose.Schema.Types.ObjectId, ref: "Teacher", required: true },
+        type: {
       type: String,
       enum: ['text', 'image', 'video', 'link'],
       required: true,

@@ -24,7 +24,7 @@ const teacherSchema = new mongoose.Schema({
 
 // Middleware to create a BalanceHistory entry when a new teacher is created
 teacherSchema.post("save", async function (doc, next) {
-  try {
+    try {
     await BalanceHistory.create({
       teacherId: doc._id,
       historyIncome: [],

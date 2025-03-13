@@ -27,7 +27,7 @@ const studentSchema = new mongoose.Schema({
     // 🔹 Reward System
     rewardPoints: { 
         type: Number, 
-        default: REWARD_POINT_ON_ACCOUNT_CREATION
+        default: Number(REWARD_POINT_ON_ACCOUNT_CREATION)
     },
 
     // 🔹 OTP for Verification
@@ -45,6 +45,9 @@ const studentSchema = new mongoose.Schema({
 
     createdAt: { type: Date, default: Date.now }
 });
+
+
+
 
 /**
  * Enroll a student in a course
@@ -93,6 +96,14 @@ studentSchema.statics.enrollModule = async function (studentId, courseId, module
     await student.save({ session });
 };
 
-
+// 🔹 Automatically Generate Profile Picture Using Initials
+studentSchema.post("save", async function (doc, next) {
+    if (doc.name && !doc.profilepicURL) {
+        const initials = doc.name.slice(0, 2).toUpperCase(); // First two letters
+        doc.profilepicURL = `https://api.dicebear.com/8.x/initials/svg?seed=${initials}`;
+        await doc.save(); // Save the updated profile picture URL
+    }
+    next();
+});
 
 module.exports = mongoose.model("Student", studentSchema);
