@@ -43,7 +43,7 @@ exports.createCourse = async (req, res) => {
     }
 
     // Default thumbnail URL
-    let thumbnailUrl = "https://example.com/default-thumbnail.jpg";
+    let thumbnailUrl = "https://picsum.photos/1920/1080";
 
     // If thumbnail uploaded, process it
     if (req.file) {

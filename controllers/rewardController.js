@@ -13,7 +13,7 @@ const sendEmail = require("../utils/sendEmail");
 // Get reward history (self-Student only)
 exports.getRewardHistoryByStudentId = async (req, res) => {
   try {
-    const studentId = req.student.id; // Authenticated Student ID
+    const studentId = req.studentId; // Authenticated Student ID
 
     const rewardHistory = await Reward.findOne({ student: studentId });
 
