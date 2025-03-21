@@ -299,15 +299,26 @@ exports.getAllStudents = async (req, res) => {
   }
 };
 
+
+
 exports.enrolledCoursesForStudent = async (req, res) => {
   try {
-    const studentId  = req.studentId;
+    const studentId = req.studentId;
 
     if (!studentId) {
       return res.status(400).json({ message: "Student ID is required" });
     }
 
-    const student = await Student.findById(studentId).select("courses_enrolled");
+    const student = await Student.findById(studentId)
+      .select("courses_enrolled")
+      .populate({
+        path: "courses_enrolled.courseId",
+        select: "-sell_price -totalSell -lastMonthSell -last6MonthSell -lastYearSell -totalSellPrice -lastMonthSellPrice -last6MonthSellPrice -lastYearSellPrice", 
+      })
+      .populate({
+        path: "courses_enrolled.modules",
+        select: "-sell_price -totalSales -monthlySales -sixMonthSales -yearlySales -totalSellPrice -lastMonthSellPrice -last6MonthSellPrice -lastYearSellPrice",
+      });
 
     if (!student) {
       return res.status(404).json({ message: "Student not found" });
