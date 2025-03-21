@@ -301,7 +301,7 @@ exports.getAllStudents = async (req, res) => {
 
 exports.enrolledCoursesForStudent = async (req, res) => {
   try {
-    const { studentId } = req.params;
+    const { studentId } = req.studentId;
 
     if (!studentId) {
       return res.status(400).json({ message: "Student ID is required" });
