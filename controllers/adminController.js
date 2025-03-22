@@ -1,4 +1,5 @@
 const Admin = require("../models/Admin");
+require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 
