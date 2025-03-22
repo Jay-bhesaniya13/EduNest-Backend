@@ -10,7 +10,7 @@ const adminSchema = new mongoose.Schema({
   city: { type: String, default: "" },
   profilepicURL: {
     type: String,
-    default: "https://example.com/abc.jpg",
+    default: "https://picsum.photos/1920/1080",
   },
   isVerified: { type: Boolean, default: true },
   isActive: { type: Boolean, default: true },
