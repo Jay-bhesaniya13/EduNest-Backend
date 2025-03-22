@@ -9,7 +9,8 @@ const {
   updateStudentProfile,  
   deactivateStudent,
   getAllStudents,
-  enrolledCoursesForStudent
+  enrolledCoursesForStudent,
+  getTopCourses
 } = require("../controllers/studentController");
 
 const { authenticateStudent } = require("../controllers/authController");
