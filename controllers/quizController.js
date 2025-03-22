@@ -88,7 +88,7 @@ exports.removeQuestionFromQuiz = async (req, res) => {
 // ✅ Get all quizzes (Only authenticated admin)
 exports.getAllQuizzes = async (req, res) => {
   try {
-    const quizzes = await Quiz.find({ admin: req.admin._id });
+    const quizzes = await Quiz.find();
     res.status(200).json(quizzes);
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -70,19 +70,20 @@ exports.authenticateClient = async (req, res, next) => {
  exports.authenticateAdmin = async (req, res, next) => {
   try {
     const token = req.header("Authorization");
-    console.log("By AuthAdmin recieved token :"+token)
-    if (!token) return res.status(401).json({ message: "Access denied. No token provided." });
-    console.log("process.env.JWT_SECRET:  "+process.env.JWT_SECRET)
-    const decoded = jwt.verify(token.replace("Bearer ", ""), process.env.JWT_SECRET);
+     if (!token) return res.status(401).json({ message: "Access denied. No token provided." });
+     const decoded = jwt.verify(token.replace("Bearer ", ""), process.env.JWT_SECRET);
     
-    console.log("decoded: "+decoded)
-    const admin = await Admin.findById(decoded.id);
+     const admin = await Admin.findById(decoded.id);
     if (!admin) return res.status(401).json({ message: "Invalid token or admin not found." });
 
     req.admin = admin; // Store admin in request object
     next();
   } catch (error) {
-    console.log("error for 401 status:"+error)
-    res.status(401).json({ message: "Invalid token." });
-  }
+    res.status(401).json({ 
+        success: false, 
+        message: "Invalid token.", 
+        error: error.message || error 
+    });
+}
+
 };
