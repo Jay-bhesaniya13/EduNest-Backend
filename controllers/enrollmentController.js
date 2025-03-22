@@ -4,6 +4,7 @@ const Module = require("../models/Module");
 const Teacher = require("../models/Teacher");
 const Student = require("../models/Student");
 const BalanceHistory = require("../models/BalanceHistory");
+const Reward = require("../models/Reward")
 const dotenv = require("dotenv");
 const mongoose = require("mongoose");
 
@@ -360,9 +361,6 @@ exports.createEnrollmentModule = async (req, res) => {
     res.status(500).json({ error: "Server error, enrollment failed" });
   }
 };
-
-
-
 
 
 // Get all enrollments (only if adminId is valid)
