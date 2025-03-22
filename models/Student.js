@@ -92,15 +92,20 @@ studentSchema.statics.enrollModule = async function (studentId, courseId, module
     let courseEntry = student.courses_enrolled.find(entry => entry.courseId.equals(courseId));
 
     if (courseEntry) {
-        if (!courseEntry.modules.includes(moduleId)) {
-            courseEntry.modules.push(moduleId);
+        // Ensure moduleId is unique using Set
+        const moduleSet = new Set(courseEntry.modules.map(m => m.toString())); 
+        if (moduleSet.has(moduleId.toString())) {
+            throw new Error("Module already enrolled in this course");
         }
+        moduleSet.add(moduleId.toString());
+        courseEntry.modules = Array.from(moduleSet); // Convert Set back to array
     } else {
         student.courses_enrolled.push({ courseId, modules: [moduleId] });
     }
 
     await student.save({ session });
 };
+
 
 // 🔹 Automatically Generate Profile Picture Using Initials
 studentSchema.post("save", async function (doc, next) {
