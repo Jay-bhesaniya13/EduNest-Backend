@@ -72,8 +72,9 @@ exports.authenticateClient = async (req, res, next) => {
     const token = req.header("Authorization");
     console.log("By AuthAdmin recieved token :"+token)
     if (!token) return res.status(401).json({ message: "Access denied. No token provided." });
-
+    console.log("process.env.JWT_SECRET:  "+process.env.JWT_SECRET)
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("decoded: "+decoded)
     const admin = await Admin.findById(decoded.id);
     if (!admin) return res.status(401).json({ message: "Invalid token or admin not found." });
 
