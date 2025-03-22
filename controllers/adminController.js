@@ -223,3 +223,83 @@ exports.dashboardDetails = async (req, res) => {
   }
 };
 
+
+// get All the students from database weather active or not
+exports.getAllTeachers = async (req, res) => {
+  try {
+    const teachers = await Teacher.find()
+      .select("profilepicURL name email contactNumber enrolledStudents averageRating course_created about areas_of_expertise isActive")
+      .populate("enrolledStudents", "_id"); // Only fetch the student IDs to count them
+
+    // Transform data
+    const teacherList = teachers.map(teacher => ({
+      profilepicURL: teacher.profilepicURL,
+      name: teacher.name,
+      email: teacher.email,
+      contactNumber: teacher.contactNumber || "N/A",
+      totalEnrolledStudents: teacher.enrolledStudents.length,
+      averageRating: teacher.averageRating || 0,
+      coursesCreated: teacher.course_created || 0,
+      bio: teacher.about || "No bio available",
+      areasOfExpertise: teacher.areas_of_expertise.length > 0 ? teacher.areas_of_expertise : ["No expertise listed"],
+      isActive: teacher.isActive
+    }));
+
+    res.status(200).json({
+      success: true,
+      totalTeachers: teacherList.length,
+      teachers: teacherList
+    });
+  } catch (error) {
+    console.error("Error fetching teachers:", error);
+    res.status(500).json({ success: false, message: "Internal server error.", error: error.message });
+  }
+};
+
+// 🔹 Inactivate Teacher
+exports.inactivateTeacher = async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher) {
+      return res.status(404).json({ success: false, message: "Teacher not found." });
+    }
+
+    if (!teacher.isActive) {
+      return res.status(400).json({ success: false, message: "Teacher is already inactive." });
+    }
+
+    teacher.isActive = false;
+    await teacher.save();
+
+    res.status(200).json({ success: true, message: "Teacher has been inactivated successfully." });
+  } catch (error) {
+    console.error("Error inactivating teacher:", error);
+    res.status(500).json({ success: false, message: "Internal server error." });
+  }
+};
+
+// 🔹 Activate Teacher
+exports.activateTeacher = async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher) {
+      return res.status(404).json({ success: false, message: "Teacher not found." });
+    }
+
+    if (teacher.isActive) {
+      return res.status(400).json({ success: false, message: "Teacher is already active." });
+    }
+
+    teacher.isActive = true;
+    await teacher.save();
+
+    res.status(200).json({ success: true, message: "Teacher has been activated successfully." });
+  } catch (error) {
+    console.error("Error activating teacher:", error);
+    res.status(500).json({ success: false, message: "Internal server error." });
+  }
+};
