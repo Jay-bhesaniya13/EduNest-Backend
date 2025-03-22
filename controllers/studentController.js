@@ -4,6 +4,7 @@ const REWARD_POINT_ON_ACCOUNT_CREATION = process.env.REWARD_POINT_ON_ACCOUNT_CRE
 
 const Student = require("../models/Student");
 const Reward = require("../models/Reward");
+const Course=require("../models/Course")
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
