@@ -5,7 +5,8 @@ const {
   getAllAdmins,
   getAdminById,
   updateAdmin,
-  deleteAdmin
+  deleteAdmin,
+  dashboardDetails
 } = require("../controllers/adminController");
 const { authenticateAdmin } = require("../controllers/authController");
 
@@ -18,6 +19,8 @@ router.get("/me", authenticateAdmin, getAdminById); // Protected: Fetch logged-i
 router.put("/update", authenticateAdmin, updateAdmin); // Protected: Admin can update only their details
 router.delete("/delete", authenticateAdmin, deleteAdmin); // Protected: Admin can delete only their account
 
+
+router.get("/dash-board",authenticateAdmin,dashboardDetails);
 
 
 
