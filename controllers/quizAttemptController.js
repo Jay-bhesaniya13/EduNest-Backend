@@ -51,7 +51,6 @@ exports.getQuizById = async (req, res) => {
         res.status(500).json({ message: "Server error", error });
     }
 };
-
 exports.submitQuizAttempt = async (req, res) => {
     try {
         const { quizId, answers } = req.body;
@@ -112,9 +111,14 @@ exports.submitQuizAttempt = async (req, res) => {
 
         // ✅ Store the attempt in the student's record
         student.attemptedQuizzes.push({ quizId, marks: totalMarks, timeTaken, submittedAnswers });
-        await student.save();
 
-        // ✅ Update leaderboard (No limit on the number of students)
+        // ✅ Increment `quiz.attempts`
+        quiz.attempts += 1;
+
+        // ✅ Update both student and quiz simultaneously
+        await Promise.all([student.save(), quiz.save()]);
+
+        // ✅ Update leaderboard
         let leaderboard = await Leaderboard.findOne({ quizId });
 
         if (!leaderboard) {
@@ -137,6 +141,7 @@ exports.submitQuizAttempt = async (req, res) => {
             marksObtained: totalMarks,
             maxMarks,
             timeTaken,
+            attempts: quiz.attempts, // 🆕 Return the updated number of attempts
             submittedAnswers,
             correctAnswers: questions.map(q => ({
                 questionId: q._id,
@@ -145,7 +150,7 @@ exports.submitQuizAttempt = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Error:", error);
-        res.status(500).json({ message: "Server error", error });
+        console.error("Error in submitQuizAttempt:", error);
+        res.status(500).json({ message: "Server error", error: error.message || error });
     }
 };

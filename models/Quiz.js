@@ -13,8 +13,10 @@ const quizSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
     startAt: { type: Date, required: true }, // Date and Time
     rewardPoints: { type: Number, required: true },
+    attempts:{type:Number,default: 0},
     leaderboard: { type: mongoose.Schema.Types.ObjectId, ref: "Leaderboard" } // Reference to the leaderboard
 });
+
 
 // Pre-save hook to calculate totalMarks and create a leaderboard
 quizSchema.pre("save", async function (next) {
