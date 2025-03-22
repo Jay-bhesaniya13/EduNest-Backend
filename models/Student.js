@@ -91,16 +91,17 @@ studentSchema.statics.enrollModule = async function (studentId, courseId, module
 
     let courseEntry = student.courses_enrolled.find(entry => entry.courseId.equals(courseId));
 
+    const moduleObjectId = new mongoose.Types.ObjectId(moduleId); // Ensure valid ObjectId
+
     if (courseEntry) {
-        // Ensure moduleId is unique using Set
         const moduleSet = new Set(courseEntry.modules.map(m => m.toString())); 
-        if (moduleSet.has(moduleId.toString())) {
+        if (moduleSet.has(moduleObjectId.toString())) {
             throw new Error("Module already enrolled in this course");
         }
-        moduleSet.add(moduleId.toString());
-        courseEntry.modules = Array.from(moduleSet); // Convert Set back to array
+        moduleSet.add(moduleObjectId.toString());
+        courseEntry.modules = Array.from(moduleSet).map(id => new mongoose.Types.ObjectId(id)); // Convert back to ObjectId
     } else {
-        student.courses_enrolled.push({ courseId, modules: [moduleId] });
+        student.courses_enrolled.push({ courseId, modules: [moduleObjectId] });
     }
 
     await student.save({ session });

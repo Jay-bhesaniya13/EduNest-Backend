@@ -263,7 +263,7 @@ exports.createEnrollmentModule = async (req, res) => {
 
 
     // ✅ Update student's enrolled courses/modules list
-    await Student.enrollModule(studentId, courseId, module, session);
+    await Student.enrollModule(studentId, courseId, module._id, session);
 
     await student.save({ session }); // ✅ Ensure session is used
 
