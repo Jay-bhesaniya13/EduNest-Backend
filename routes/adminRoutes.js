@@ -8,11 +8,11 @@ const {
   deleteAdmin,
   dashboardDetails,
 
-  getAllTeachers,
-  activateTeacher,
-  inactivateTeacher,
+  getAllTeachers, activateTeacher, inactivateTeacher,
 
-  activateStudent, deactivateStudent, getStudentDetails
+  activateStudent, deactivateStudent, getStudentDetails,
+
+  getAllCourses
 } = require("../controllers/adminController");
 const { authenticateAdmin } = require("../controllers/authController");
 // const { getAllTeachers } = require("../controllers/teacherController");
@@ -47,5 +47,8 @@ router.put("/student/activate/:studentId", activateStudent);
 
 // Route to get student details
 router.get("/student/:studentId", getStudentDetails);
+
+// Route to get all courses
+router.get("/courses", authenticateAdmin, getAllCourses);
 
 module.exports = router;

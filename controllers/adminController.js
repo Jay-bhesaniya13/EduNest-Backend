@@ -390,3 +390,40 @@ exports.getStudentDetails = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error." });
   }
 };
+
+
+// All Courses with basic details
+exports.getAllCourses = async (req, res) => {
+  try {
+    const courses = await Course.find()
+      .populate("teacherId", "name") // Get teacher name
+      .populate("modules", "_id") // Get module count
+      .select(
+        "thumbnail title description avgRating totalSell sell_price price modules level lastMonthSell last6MonthSell"
+      );
+
+    if (!courses || courses.length === 0) {
+      return res.status(404).json({ success: false, message: "No courses found." });
+    }
+
+    const formattedCourses = courses.map((course) => ({
+      thumbnail: course.thumbnail,
+      teacherName: course.teacherId?.name || "Unknown",
+      courseTitle: course.title,
+      description: course.description,
+      averageRating: course.avgRating || 0,
+      totalStudentsEnrolled: course.totalSell || 0,
+      sellPrice: course.sell_price,
+      basePrice: course.price,
+      totalModules: course.modules.length,
+      lastMonthSales: course.lastMonthSell || 0,
+      last6MonthSales: course.last6MonthSell || 0,
+      level: course.level,
+    }));
+
+    res.status(200).json({ success: true, courses: formattedCourses });
+  } catch (error) {
+    console.error("Error fetching courses:", error);
+    res.status(500).json({ success: false, message: "Internal server error." });
+  }
+};
