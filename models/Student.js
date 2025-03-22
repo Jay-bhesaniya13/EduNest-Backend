@@ -39,7 +39,13 @@ const studentSchema = new mongoose.Schema({
         {
             quizId: { type: mongoose.Schema.Types.ObjectId, ref: "Quiz", required: true },
             marks: { type: Number, required: true },
-            timeTaken: { type: Number, required: true } // Time taken in seconds
+            timeTaken: { type: Number, required: true }, // Time taken in seconds
+            submittedAnswers: [ // Store submitted answers for each question
+                {
+                    questionId: { type: mongoose.Schema.Types.ObjectId, ref: "Question", required: true },
+                    selectedAnswerIndex: { type: Number, required: true } // Submitted answer index
+                }
+            ]
         }
     ],
 

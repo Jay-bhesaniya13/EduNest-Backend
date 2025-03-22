@@ -1,9 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const {getStudentAttemptedQuizzes} = require("../controllers/attemptedQuizController");
+const {getStudentAttemptedQuizDetails} = require("../controllers/attemptedQuizController");
 const {authenticateStudent}=require("../controllers/authController")
   
 // ✅ Route to get all attempted quizzes for a student
-router.get("/",authenticateStudent ,getStudentAttemptedQuizzes);
+router.get("/:quizId",authenticateStudent ,getStudentAttemptedQuizDetails);
 
 module.exports = router;
