@@ -14,7 +14,7 @@ exports.authenticateStudent = (req, res, next) => {
    console.log("auth:"+req.studentId )
     next();
   } catch (error) {
-    res.status(400).json({ error: "Invalid token from student Auth" });
+    res.status(400).json({ error: "Invalid token from student Auth" ,message:error});
   }
 };
 
@@ -22,12 +22,14 @@ exports.authenticateStudent = (req, res, next) => {
 // Authenticat Teacher
 exports.authenticateTeacher = async (req, res, next) => {
   const token = req.header("Authorization");
+  
   if (!token) {
     return res.status(401).json({ error: "Access denied. No token provided." });
   }
 
   try {
     const decoded = jwt.verify(token.replace("Bearer ", ""), process.env.JWT_SECRET);
+    console.log("Decode:"+decoded)
     const teacher = await Teacher.findById(decoded.id);
     
     if (!teacher || !teacher.isActive) {
@@ -52,6 +54,7 @@ exports.authenticateClient = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token.replace("Bearer ", ""), SECRET_KEY);
+    
     const client = await Client.findById(decoded.id);
      if (!client) {
       return res.status(403).json({ error: "Unauthorized. Client not found.bbvj" ,jwt_id:decoded.id,token });
@@ -67,6 +70,7 @@ exports.authenticateClient = async (req, res, next) => {
  exports.authenticateAdmin = async (req, res, next) => {
   try {
     const token = req.header("Authorization");
+    console.log("By AuthAdmin recieved token :"+token)
     if (!token) return res.status(401).json({ message: "Access denied. No token provided." });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
