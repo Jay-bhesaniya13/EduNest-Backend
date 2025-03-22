@@ -333,3 +333,24 @@ exports.enrolledCoursesForStudent = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
+
+
+// Get top 5 trending course based on month sale
+exports.getTopCourses = async (req, res) => {
+  try {
+    const topCourses = await Course.find({ lastMonthSell: { $gt: 0 } }) // Only consider courses with sales
+      .sort({ lastMonthSell: -1 }) // Sort by last month's sales in descending order
+      .limit(5) // Get only the top 5 courses
+      .select("title totalSell lastMonthSell"); // Fetch required fields
+
+    res.status(200).json({ 
+      message: "Top 5 courses based on last month's sales", 
+      courses: topCourses 
+    });
+
+  } catch (error) {
+    console.error("Error fetching top courses:", error);
+    res.status(500).json({ message: "Server error", error });
+  }
+};

@@ -29,6 +29,9 @@ router.delete("/deactivate",authenticateStudent, deactivateStudent);
 
 router.get("/get-enrollment" , authenticateStudent , enrolledCoursesForStudent );
 
+// get top 5 trnding course based on last month sale
+router.get("/trending-course",getTopCourses);
+
 // to retrive all students by admin ( later on add authorization for admin )
 router.get("/admin13", getAllStudents);
 
