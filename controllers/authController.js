@@ -76,6 +76,7 @@ exports.authenticateClient = async (req, res, next) => {
     req.admin = admin; // Store admin in request object
     next();
   } catch (error) {
+    console.log("error for 401 status:"+error)
     res.status(401).json({ message: "Invalid token." });
   }
 };

@@ -67,6 +67,7 @@ exports.getAdminById = async (req, res) => {
   try {
     res.status(200).json({ admin: req.admin }); // No need to query the database again
   } catch (error) {
+    console.log(" error for admin access persist is :"+error.message)
     res.status(500).json({ error: error.message });
   }
 };
