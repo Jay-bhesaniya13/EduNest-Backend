@@ -303,3 +303,90 @@ exports.activateTeacher = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error." });
   }
 };
+
+
+// 🔹 Deactivate Student
+exports.deactivateStudent = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ success: false, message: "Student not found." });
+    }
+
+    if (!student.isActive) {
+      return res.status(400).json({ success: false, message: "Student is already inactive." });
+    }
+
+    student.isActive = false;
+    await student.save();
+
+    res.status(200).json({ success: true, message: "Student has been deactivated successfully." });
+  } catch (error) {
+    console.error("Error deactivating student:", error);
+    res.status(500).json({ success: false, message: "Internal server error." });
+  }
+};
+
+// 🔹 Activate Student
+exports.activateStudent = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ success: false, message: "Student not found." });
+    }
+
+    if (student.isActive) {
+      return res.status(400).json({ success: false, message: "Student is already active." });
+    }
+
+    student.isActive = true;
+    await student.save();
+
+    res.status(200).json({ success: true, message: "Student has been activated successfully." });
+  } catch (error) {
+    console.error("Error activating student:", error);
+    res.status(500).json({ success: false, message: "Internal server error." });
+  }
+};
+
+// 🔹 Get Student Details
+exports.getStudentDetails = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    const student = await Student.findById(studentId)
+      .populate("courses_enrolled.courseId", "title") // Get course names
+      .select("profilepicURL name email contactNumber rewardPoints createdAt isActive courses_enrolled");
+
+    if (!student) {
+      return res.status(404).json({ success: false, message: "Student not found." });
+    }
+
+    const totalCoursesEnrolled = student.courses_enrolled.length;
+
+    res.status(200).json({
+      success: true,
+      student: {
+        profilepicURL: student.profilepicURL,
+        name: student.name,
+        email: student.email,
+        contactNumber: student.contactNumber,
+        rewardPoints: student.rewardPoints,
+        joinedAt: student.createdAt,
+        isActive: student.isActive,
+        totalCoursesEnrolled,
+        courses: student.courses_enrolled.map((c) => ({
+          courseId: c.courseId._id,
+          courseTitle: c.courseId.title,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error("Error getting student details:", error);
+    res.status(500).json({ success: false, message: "Internal server error." });
+  }
+};
