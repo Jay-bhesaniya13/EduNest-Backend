@@ -69,7 +69,26 @@ exports.coursePurchaseEnrollment = async (req, res) => {
 
     // ✅ Deduct Reward Points from Student
     student.rewardPoints -= courseSellPrice;
-    await student.save({ session });
+
+    // ✅ Store in Reward History
+    let rewardHistory = await Reward.findOne({ student: studentId }).session(session);
+
+    if (!rewardHistory) {
+      rewardHistory = new Reward({
+        student: studentId,
+        pointsChanged: [-courseSellPrice],
+        reasons: [`Purchased course '${course.title}'`],
+        timestamps: [new Date()]
+      });
+    } else {
+      rewardHistory.pointsChanged.push(-courseSellPrice);
+      rewardHistory.reasons.push(`Purchased course '${course.title}'`);
+      rewardHistory.timestamps.push(new Date());
+    }
+
+    await rewardHistory.save({ session }); // ✅ Save reward history in transaction
+    await student.save({ session }); // ✅ Ensure student update is also committed
+
 
     // ✅ Create Enrollment
     const newEnrollment = new Enrollment({
@@ -222,8 +241,28 @@ exports.createEnrollmentModule = async (req, res) => {
     // ✅ Deduct `sell_price` from student's reward points
     student.rewardPoints -= moduleSellPrice;
 
+    // ✅ Store in Reward History
+    let rewardHistory = await Reward.findOne({ student: studentId }).session(session);
+
+    if (!rewardHistory) {
+      rewardHistory = new Reward({
+        student: studentId,
+        pointsChanged: [-moduleSellPrice],
+        reasons: [`Enrolled in module '${module.title}' from course '${course.title}'`],
+        timestamps: [new Date()]
+      });
+    } else {
+      rewardHistory.pointsChanged.push(-moduleSellPrice);
+      rewardHistory.reasons.push(`Enrolled in module '${module.title}' from course '${course.title}'`);
+      rewardHistory.timestamps.push(new Date());
+    }
+
+    await rewardHistory.save({ session }); // Ensure session is used
+    await student.save({ session }); // ✅ Ensure session is used
+
+
     // ✅ Update student's enrolled courses/modules list
-     await Student.enrollModule(studentId, courseId, module, session);
+    await Student.enrollModule(studentId, courseId, module, session);
 
     await student.save({ session }); // ✅ Ensure session is used
 
@@ -231,24 +270,24 @@ exports.createEnrollmentModule = async (req, res) => {
     let enrollment = await Enrollment.findOne({ student: studentId, course: courseId }).session(session);
 
 
-     if (!enrollment) {
-       
+    if (!enrollment) {
+
       let ModuleId;
       if (!Array.isArray(moduleId)) {
-         ModuleId = [moduleId]; // Convert to array if it's not already one
+        ModuleId = [moduleId]; // Convert to array if it's not already one
       }
-       
+
       enrollment = new Enrollment({
-         studentId,
-         courseId,
-         moduleIds: ModuleId // ✅ Ensure it's an array
+        studentId,
+        courseId,
+        moduleIds: ModuleId // ✅ Ensure it's an array
       });
       await enrollment.save({ session });
     } else {
       // ✅ If already enrolled, check if the module is already added
       if (!enrollment.modules.includes(moduleId)) {
         enrollment.modules.push(moduleId);
-         // ✅ Update module sales tracking stats
+        // ✅ Update module sales tracking stats
         await Module.findByIdAndUpdate(moduleId, {
           $inc: {
             totalSales: 1,
@@ -277,8 +316,8 @@ exports.createEnrollmentModule = async (req, res) => {
       teacherId,
       { $addToSet: { enrolledStudents: studentId } }, // Ensures no duplicates
       { new: true }
-    ).session(session) ;
-    
+    ).session(session);
+
     if (!updatedTeacher) {
       await session.abortTransaction();
       return res.status(500).json({ message: "Error updating teacher's enrolled students" });
@@ -445,6 +484,7 @@ exports.deleteEnrollment = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
 
 // Get enrolled students for a course (only if the teacher owns the course)
 exports.getEnrolledStudents = async (req, res) => {
