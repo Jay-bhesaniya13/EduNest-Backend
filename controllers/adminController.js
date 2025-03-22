@@ -116,13 +116,12 @@ exports.deleteAdmin = async (req, res) => {
   }
 };
 
-
-// to get all details of admin for dashboard
+// Display data to Dashboard for Admin
 exports.dashboardDetails = async (req, res) => {
   try {
     const adminId = req.admin._id; // Get admin from request object
     const admin = await Admin.findById(adminId).select("name profilepicURL");
-    
+
     if (!admin) return res.status(404).json({ message: "Admin not found." });
 
     const last30Days = new Date();
@@ -142,7 +141,7 @@ exports.dashboardDetails = async (req, res) => {
     const topCourses = await Course.aggregate([
       {
         $lookup: {
-          from: "enrollments", // Assuming Enrollment model stores enrollments
+          from: "enrollments",
           localField: "_id",
           foreignField: "courseId",
           as: "enrollments"
@@ -154,18 +153,52 @@ exports.dashboardDetails = async (req, res) => {
           averageRating: { $avg: "$ratings" }
         }
       },
-      {
-        $sort: { totalEnrollments: -1, averageRating: -1 }
-      },
-      {
-        $limit: 3
-      },
+      { $sort: { totalEnrollments: -1, averageRating: -1 } },
+      { $limit: 3 },
       {
         $project: {
           title: 1,
           totalEnrollments: 1,
           averageRating: { $ifNull: ["$averageRating", 0] },
           price: 1
+        }
+      }
+    ]);
+
+    // Fetch Top 3 Teachers based on enrollments
+    const topTeachers = await Teacher.aggregate([
+      {
+        $lookup: {
+          from: "courses",
+          localField: "_id",
+          foreignField: "teacherId",
+          as: "courses"
+        }
+      },
+      {
+        $lookup: {
+          from: "enrollments",
+          localField: "courses._id",
+          foreignField: "courseId",
+          as: "enrollments"
+        }
+      },
+      {
+        $addFields: {
+          totalEnrollments: { $size: "$enrollments" },
+          course_created: { $size: "$courses" },
+          averageRating: { $avg: "$courses.ratings" }
+        }
+      },
+      { $sort: { totalEnrollments: -1, averageRating: -1 } },
+      { $limit: 3 },
+      {
+        $project: {
+          name: 1,
+          profilepicURL: 1,
+          totalEnrollments: 1,
+          averageRating: { $ifNull: ["$averageRating", 0] },
+          course_created: 1
         }
       }
     ]);
@@ -180,7 +213,8 @@ exports.dashboardDetails = async (req, res) => {
         teachersLast30Days,
         coursesLast30Days
       },
-      topCourses
+      topCourses,
+      topTeachers
     });
 
   } catch (error) {
@@ -188,3 +222,4 @@ exports.dashboardDetails = async (req, res) => {
     res.status(500).json({ message: "Internal server error.", error: error.message });
   }
 };
+
