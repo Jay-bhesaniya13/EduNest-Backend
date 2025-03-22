@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Teacher = require("../models/Teacher");
 const TempTeacher = require("../models/TempTeacher");
+const BalanceHistory=require("../models/BalanceHistory")
 const sendEmail = require("../utils/sendEmail");
 
 require("dotenv").config();
@@ -184,16 +185,29 @@ exports.loginTeacher = async (req, res) => {
 // **6. Get Teacher's Own Profile**
 exports.getTeacherProfile = async (req, res) => {
   try {
+    // ✅ Fetch teacher details
     const teacher = await Teacher.findById(req.teacher.id);
     if (!teacher) {
       return res.status(404).json({ error: "Teacher not found." });
     }
-    res.status(200).json(teacher);
+
+    // ✅ Fetch teacher's balance history
+    const balanceHistory = await BalanceHistory.findOne({ teacherId: teacher._id });
+
+    // ✅ Calculate totalIncome from historyIncome array
+    const totalIncome = balanceHistory?.historyIncome.reduce((sum, record) => sum + record.income, 0) || 0;
+
+    res.status(200).json({ 
+      ...teacher.toObject(), 
+      totalIncome // 🆕 Added total income field
+    });
 
   } catch (error) {
+    console.error("Error fetching teacher profile:", error);
     res.status(500).json({ error: error.message });
   }
 };
+
 
 // **7. Update Teacher's Own Profile**
 // **7. Update Teacher's Own Profile**
