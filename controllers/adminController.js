@@ -1,27 +1,37 @@
 const Admin = require("../models/Admin");
-const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 
-// ✅ Register (Create Admin)
+// ✅ Register (Create Admin with JWT)
 exports.createAdmin = async (req, res) => {
   try {
-    const { name, email, password, contactNumber, balance } = req.body;
+    const { name, email, password, contactNumber, bio, city, profilepicURL } = req.body;
 
+    // Check if email already exists
     const existingAdmin = await Admin.findOne({ email });
     if (existingAdmin) {
       return res.status(400).json({ message: "Admin with this email already exists" });
     }
 
-    const newAdmin = new Admin({ name, email, password, contactNumber, balance });
+    // Create new admin object, only including optional fields if provided
+    const newAdminData = { name, email, password, contactNumber };
+    if (bio) newAdminData.bio = bio;
+    if (city) newAdminData.city = city;
+    if (profilepicURL) newAdminData.profilepicURL = profilepicURL;
+
+    const newAdmin = new Admin(newAdminData);
     await newAdmin.save();
 
-    res.status(201).json({ message: "Admin created successfully" ,newAdmin });
+    // Generate JWT token
+    const token = jwt.sign({ id: newAdmin._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+
+    res.status(201).json({ message: "Admin created successfully", token, admin: newAdmin });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// ✅ Login Admin
+// ✅ Login Admin (Returns JWT Token)
 exports.loginAdmin = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -35,53 +45,63 @@ exports.loginAdmin = async (req, res) => {
     // Generate JWT
     const token = jwt.sign({ id: admin._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
-    res.status(200).json({ message: "Login successful", token });
+    res.status(200).json({ message: "Login successful", token, admin });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// ✅ Get all Admins (Protected)
+
+// ✅ Get all Admins (Protected Route)
 exports.getAllAdmins = async (req, res) => {
   try {
-    const admins = await Admin.find();
+    const admins = await Admin.find().select("-password"); // Exclude passwords
     res.status(200).json({ admins });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// ✅ Get Admin by ID (Only authenticated admin)
+// ✅ Get Admin by ID (Fetch logged-in admin details)
 exports.getAdminById = async (req, res) => {
   try {
-    const admin = await Admin.findById(req.admin._id); // Fetch only the logged-in admin
-    if (!admin) return res.status(404).json({ message: "Admin not found" });
-
-    res.status(200).json({ admin });
+    res.status(200).json({ admin: req.admin }); // No need to query the database again
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// ✅ Update Admin (Only the authenticated admin can update their details)
+// ✅ Update Admin (Admin can update only their details)
 exports.updateAdmin = async (req, res) => {
   try {
-    const updatedAdmin = await Admin.findByIdAndUpdate(req.admin._id, req.body, { new: true });
+    const updateData = {};
 
-    if (!updatedAdmin) return res.status(404).json({ message: "Admin not found" });
+    // Add only provided fields
+    if (req.body.name) req.admin.name = req.body.name;
+    if (req.body.email) req.admin.email = req.body.email;
+    if (req.body.contactNumber) req.admin.contactNumber = req.body.contactNumber;
+    if (req.body.bio) req.admin.bio = req.body.bio;
+    if (req.body.city) req.admin.city = req.body.city;
+    if (req.body.profilepicURL) req.admin.profilepicURL = req.body.profilepicURL;
 
-    res.status(200).json({ message: "Admin updated successfully", admin: updatedAdmin });
+    // If updating password, hash it before saving
+    if (req.body.password) {
+      const salt = await bcrypt.genSalt(10);
+      req.admin.password = await bcrypt.hash(req.body.password, salt);
+    }
+
+    await req.admin.save(); // Save the updated admin
+
+    res.status(200).json({ message: "Admin updated successfully", admin: req.admin });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// ✅ Delete Admin (Only authenticated admin can delete their account)
+// ✅ Delete Admin (Admin can delete only their account)
 exports.deleteAdmin = async (req, res) => {
   try {
-    const deletedAdmin = await Admin.findByIdAndDelete(req.admin._id);
-
-    if (!deletedAdmin) return res.status(404).json({ message: "Admin not found" });
+    await req.admin.deleteOne(); // Delete the logged-in admin
 
     res.status(200).json({ message: "Admin deleted successfully" });
   } catch (error) {

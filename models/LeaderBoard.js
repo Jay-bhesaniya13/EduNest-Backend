@@ -24,7 +24,7 @@ leaderboardSchema.pre("save", function (next) {
             if (b.marks === a.marks) return a.timeTaken - b.timeTaken; // Less time is better
             return b.marks - a.marks;
         })
-        .slice(0, 10);
+         
     next();
 });
 

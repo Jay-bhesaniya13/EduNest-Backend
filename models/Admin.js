@@ -6,13 +6,16 @@ const adminSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   contactNumber: { type: String },
+  bio: { type: String, default: "" },
+  city: { type: String, default: "" },
+  profilepicURL: {
+    type: String,
+    default: "https://example.com/abc.jpg",
+  },
   isVerified: { type: Boolean, default: true },
-  isActive:  { type: Boolean, default: true },
-  balance:{type:Number , default:0},
-  profilepicURL:{type:String,default:"https://example.com/abc.jpg"},
+  isActive: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
 });
-
 
 // Hash password before saving
 adminSchema.pre("save", async function (next) {
@@ -21,7 +24,5 @@ adminSchema.pre("save", async function (next) {
   this.password = await bcrypt.hash(this.password, salt);
   next();
 });
-
-
 
 module.exports = mongoose.model("Admin", adminSchema);

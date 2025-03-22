@@ -52,17 +52,16 @@ exports.getQuizById = async (req, res) => {
     }
 };
 
-
 exports.submitQuizAttempt = async (req, res) => {
     try {
-        const { quizId, answers } = req.body; // ❌ Removed `timeTaken` from request
+        const { quizId, answers } = req.body;
         const studentId = req.studentId;
 
         if (!quizId || !answers || !Array.isArray(answers)) {
             return res.status(400).json({ message: "Quiz ID and answers array are required." });
         }
 
-        // ✅ Fetch the quiz (get start time from DB)
+        // ✅ Fetch the quiz
         const quiz = await Quiz.findById(quizId);
         if (!quiz) return res.status(404).json({ message: "Quiz not found." });
 
@@ -72,8 +71,18 @@ exports.submitQuizAttempt = async (req, res) => {
             return res.status(403).json({ message: "Quiz has not started yet." });
         }
 
-        // ✅ Calculate `timeTaken` (from quiz’s actual start time)
-        const timeTaken = Math.floor((currentTime - quiz.startAt) / 1000); // Time in seconds
+        // ✅ Fetch the student
+        const student = await Student.findById(studentId);
+        if (!student) return res.status(404).json({ message: "Student not found." });
+
+        // ❌ Prevent multiple attempts (Student can only attempt once)
+        const hasAttempted = student.attemptedQuizzes.some(q => q.quizId.toString() === quizId);
+        if (hasAttempted) {
+            return res.status(403).json({ message: "You have already attempted this quiz." });
+        }
+
+        // ✅ Calculate `timeTaken`
+        const timeTaken = Math.floor((currentTime - quiz.startAt) / 1000);
 
         // ✅ Fetch all questions for this quiz
         const questionIds = answers.map(a => a.questionId);
@@ -101,40 +110,25 @@ exports.submitQuizAttempt = async (req, res) => {
             }
         });
 
-        // ✅ Fetch the student
-        const student = await Student.findById(studentId);
-        if (!student) return res.status(404).json({ message: "Student not found." });
-
-        // ✅ Check if the student already attempted this quiz
-        const existingAttemptIndex = student.attemptedQuizzes.findIndex(q => q.quizId.toString() === quizId);
-
-        if (existingAttemptIndex !== -1) {
-            const existingAttempt = student.attemptedQuizzes[existingAttemptIndex];
-            if (totalMarks > existingAttempt.marks || (totalMarks === existingAttempt.marks && timeTaken < existingAttempt.timeTaken)) {
-                student.attemptedQuizzes[existingAttemptIndex] = { quizId, marks: totalMarks, timeTaken, submittedAnswers };
-            }
-        } else {
-            student.attemptedQuizzes.push({ quizId, marks: totalMarks, timeTaken, submittedAnswers });
-        }
-
+        // ✅ Store the attempt in the student's record
+        student.attemptedQuizzes.push({ quizId, marks: totalMarks, timeTaken, submittedAnswers });
         await student.save();
 
-        // ✅ Update leaderboard
+        // ✅ Update leaderboard (No limit on the number of students)
         let leaderboard = await Leaderboard.findOne({ quizId });
 
         if (!leaderboard) {
             leaderboard = new Leaderboard({ quizId, topStudents: [] });
         }
 
-        const existingStudentIndex = leaderboard.topStudents.findIndex(s => s.studentId.toString() === studentId);
-        if (existingStudentIndex !== -1) {
-            const existingStudent = leaderboard.topStudents[existingStudentIndex];
-            if (totalMarks > existingStudent.marks || (totalMarks === existingStudent.marks && timeTaken < existingStudent.timeTaken)) {
-                leaderboard.topStudents[existingStudentIndex] = { studentId, marks: totalMarks, timeTaken };
-            }
-        } else {
-            leaderboard.topStudents.push({ studentId, marks: totalMarks, timeTaken });
-        }
+        // ✅ Add student to leaderboard
+        leaderboard.topStudents.push({ studentId, marks: totalMarks, timeTaken });
+
+        // ✅ Sort leaderboard by marks (desc) and timeTaken (asc)
+        leaderboard.topStudents = leaderboard.topStudents.sort((a, b) => {
+            if (b.marks === a.marks) return a.timeTaken - b.timeTaken; // Less time is better
+            return b.marks - a.marks;
+        });
 
         await leaderboard.save();
 
@@ -142,7 +136,7 @@ exports.submitQuizAttempt = async (req, res) => {
             message: "Quiz attempt recorded successfully.",
             marksObtained: totalMarks,
             maxMarks,
-            timeTaken, // ✅ Correctly calculated using backend quiz start time
+            timeTaken,
             submittedAnswers,
             correctAnswers: questions.map(q => ({
                 questionId: q._id,
