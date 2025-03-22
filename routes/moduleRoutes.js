@@ -7,7 +7,7 @@ const {
   deleteModule ,
   teacherModule
 } = require("../controllers/moduleController");
-const {authenticateTeacher}=require("../controllers/authController")
+const {authenticateTeacher, authenticateStudent}=require("../controllers/authController")
 
 const router = express.Router();
 
@@ -18,7 +18,7 @@ router.post("/create",authenticateTeacher, createModule);
 router.get("/",authenticateTeacher, getAllModules);
 
 // Get a specific module by ID
-router.get("/:moduleId", authenticateTeacher,getModuleById);
+router.get("/:moduleId",  getModuleById);
 
 // Update a module by ID
 router.put("/:moduleId",authenticateTeacher, updateModule);
