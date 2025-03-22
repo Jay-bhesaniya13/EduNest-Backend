@@ -11,7 +11,7 @@ const upload = multer({ dest: 'uploads/' }); // Temp folder for file storage
 router.post('/create', upload.single('mediaFile'), handleFileUpload); // Handle file upload for content
 
 
- router.get("/get/:contentId", getContent); // Get Content by ID
+ router.get("/:contentId", getContent); // Get Content by ID
 router.get("/all",getAllContent); // Get All Content
 router.delete("/delete/:contentId", deleteContent); // Delete Content by ID
 
