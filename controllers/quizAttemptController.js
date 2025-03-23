@@ -3,6 +3,38 @@ const Quiz = require("../models/Quiz");
 const Question = require("../models/Question");
 const Leaderboard = require("../models/LeaderBoard");
 
+exports.availableAllQuizzes =
+async (req, res) => {
+    try {
+        const currentTime = new Date();
+
+        const quizzes = await Quiz.find({
+            $expr: {
+                $gt: [
+                    { $add: ["$startAt", { $multiply: ["$duration", 60000] }] }, // Expiry time
+                    currentTime
+                ]
+            }
+        }).select("title topic totalMarks rewardPoints duration startAt description questions");
+
+        // Format response
+        const response = quizzes.map(quiz => ({
+            title: quiz.title || "Untitled",
+            topic: quiz.topic,
+            totalMarks: quiz.totalMarks,
+            rewardPoints: quiz.rewardPoints,
+            duration: quiz.duration,
+            startAt: quiz.startAt,
+            description: quiz.description,
+            totalQuestions: quiz.questions.length
+        }));
+
+        res.status(200).json({ success: true, quizzes: response });
+    } catch (error) {
+        console.error("Error fetching quizzes:", error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+};
 
 // ✅ Get Quiz by ID (Without Answers)
 exports.getQuizById = async (req, res) => {
