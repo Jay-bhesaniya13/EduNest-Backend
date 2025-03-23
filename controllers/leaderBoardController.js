@@ -3,25 +3,34 @@ const Quiz = require("../models/Quiz");
 const Student = require("../models/Student");
 
 // Get leaderboard for a specific quiz
+// Get leaderboard for a specific quiz
 exports.getLeaderboard = async (req, res) => {
     try {
         let { quizId } = req.params;
 
         let leaderboard;
+        let quiz;
 
         if (quizId) {
+            // ✅ Find the quiz by ID
+            quiz = await Quiz.findById(quizId).select("totalMarks rewardPoints");
+
+            if (!quiz) {
+                return res.status(404).json({ message: "Quiz not found" });
+            }
+
             // ✅ Find leaderboard by quiz ID
             leaderboard = await Leaderboard.findOne({ quizId })
                 .populate("topStudents.studentId", "name email");
         } else {
             // ✅ Get the latest quiz and its leaderboard
-            const latestQuiz = await Quiz.findOne().sort({ startAt: -1 }); // Latest quiz by start time
-            
-            if (!latestQuiz) {
+            quiz = await Quiz.findOne().sort({ startAt: -1 }).select("totalMarks rewardPoints");
+
+            if (!quiz) {
                 return res.status(404).json({ message: "No quizzes found" });
             }
 
-            quizId = latestQuiz._id; // Use latest quiz ID
+            quizId = quiz._id; // Use latest quiz ID
             leaderboard = await Leaderboard.findOne({ quizId })
                 .populate("topStudents.studentId", "name email");
         }
@@ -30,10 +39,12 @@ exports.getLeaderboard = async (req, res) => {
             return res.status(404).json({ message: "Leaderboard not found" });
         }
 
-        // ✅ Return leaderboard with quizId
+        // ✅ Return leaderboard with quiz details
         res.status(200).json({ 
             success: true, 
             quizId, 
+            totalMarks: quiz.totalMarks,
+            rewardPoints: quiz.rewardPoints,
             leaderboard 
         });
 
@@ -42,6 +53,7 @@ exports.getLeaderboard = async (req, res) => {
         res.status(500).json({ message: "Server error", error });
     }
 };
+
 
 
 // Update leaderboard when a student completes a quiz
