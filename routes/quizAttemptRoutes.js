@@ -7,7 +7,7 @@ const { authenticateStudent }=require("../controllers/authController")
 
 
 // Get Quiz by quizId 
-router.get("/:quizId", getQuizById)
+router.get("/:quizId", authenticateStudent , getQuizById)
 
 router.get("/availablequiz/all",availableAllQuizzes)
 // Submit/ Attemp a Quiz

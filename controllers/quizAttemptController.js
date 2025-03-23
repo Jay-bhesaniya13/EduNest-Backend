@@ -3,13 +3,13 @@ const Quiz = require("../models/Quiz");
 const Question = require("../models/Question");
 const Leaderboard = require("../models/LeaderBoard");
 const mongoose = require("mongoose");
- 
-// ✅ Get Quiz by quizId (with attempted student data)
+
 exports.getQuizById = async (req, res) => {
     try {
         const { quizId } = req.params;
+        const studentId = req.studentId; // ✅ Ensure this is set via authentication middleware
 
-        // Find the quiz by ID
+        // ✅ Find the quiz by ID
         const quiz = await Quiz.findById(quizId)
             .populate({
                 path: "questions",
@@ -21,20 +21,40 @@ exports.getQuizById = async (req, res) => {
             return res.status(404).json({ success: false, message: "Quiz not found" });
         }
 
-        // Fetch students who attempted this quiz
+        // ✅ Check if the student has already attempted this quiz
+        const student = await Student.findById(studentId).select("attemptedQuizzes").lean();
+
+        if (!student) {
+            return res.status(404).json({ success: false, message: "Student not found" });
+        }
+
+        student.attemptedQuizzes = student.attemptedQuizzes || []; // Ensure it's an array
+
+        const hasAttempted = student.attemptedQuizzes.some(attempt => 
+            attempt.quizId.toString() === quizId
+        );
+
+        if (hasAttempted) {
+            return res.status(403).json({ 
+                success: false, 
+                message: "You have already attempted this quiz. You cannot access it again." 
+            });
+        }
+
+        // ✅ Fetch students who attempted this quiz
         const students = await Student.find({ "attemptedQuizzes.quizId": quizId })
-            .select("name email _id attemptedQuizzes")
+            .select("name email _id attemptedQuizzes.marks attemptedQuizzes.timeTaken")
             .lean();
 
-        // Extract relevant student data
+        // ✅ Extract relevant student data
         const attemptedStudents = students.map(student => {
             const attempt = student.attemptedQuizzes.find(a => a.quizId.toString() === quizId);
             return {
                 studentId: student._id,
                 name: student.name,
                 email: student.email,
-                marksObtained: attempt.marks,
-                timeTaken: attempt.timeTaken
+                marksObtained: attempt?.marks || 0,
+                timeTaken: attempt?.timeTaken || 0
             };
         });
 
@@ -45,11 +65,13 @@ exports.getQuizById = async (req, res) => {
                 attemptedStudents
             }
         });
+
     } catch (error) {
         console.error("Error fetching quiz by ID:", error);
-        res.status(500).json({ success: false, message: "Internal server error" });
+        res.status(500).json({ success: false, message: "Internal server error", error });
     }
 };
+
 
 // ✅ Get all available quizzes (with attempted student data)
 exports.availableAllQuizzes = async (req, res) => {
