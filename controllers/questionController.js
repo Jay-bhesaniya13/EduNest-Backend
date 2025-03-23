@@ -4,7 +4,6 @@ const Question = require("../models/Question");
 exports.createQuestion = async (req, res) => {
   try {
     const { question, options, correctAnswerIndex, marks } = req.body;
-
     const newQuestion = new Question({
       question,
       options,
@@ -12,6 +11,7 @@ exports.createQuestion = async (req, res) => {
       marks,
       admin: req.admin._id, // Set the authenticated admin as creator
     });
+    console.log("New Question Body for Crete:  "+newQuestion)
 
     await newQuestion.save();
     res.status(201).json({ message: "Question created successfully", question: newQuestion });
