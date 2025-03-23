@@ -9,11 +9,38 @@ require("dotenv").config();
 const COURSE_DISCOUNT_PERCENTAGE = parseFloat(process.env.COURSE_DISCOUNT_PERCENTAGE) || 10;
 const COURSE_PRICE_CHARGE_PERCENTAGE = parseFloat(process.env.COURSE_PRICE_CHARGE_PERCENTAGE) || 10;
 
+
+
+const getBase64Thumbnail = async (thumbnailUrl) => {
+  try {
+    if (!thumbnailUrl || !thumbnailUrl.includes("firebasestorage.googleapis.com")) return null;
+
+    const regex = /images%2F([^?]+)/;
+    const match = thumbnailUrl.match(regex);
+    if (!match || !match[1]) return null;
+
+    const imageId = match[1];
+
+    // Fetch image from Firestore
+    const imageDoc = await db.collection("images").doc(imageId).get();
+    if (imageDoc.exists) {
+      const imageData = imageDoc.data();
+      return imageData.base64; // Assuming images are stored as base64
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error fetching base64 thumbnail:", error);
+    return null;
+  }
+};
+
 /**
  * @desc Create a new course
  * @route POST /courses/create
  * @access Public (Valid teacherId required)
  */
+
 exports.createCourse = async (req, res) => {
   try {
     const { title, description, modules, level } = req.body;
@@ -109,36 +136,44 @@ exports.createCourse = async (req, res) => {
 exports.getAllCourses = async (req, res) => {
   try {
     const courses = await Course.find().populate("modules", "title price");
-    res.json(courses);
+
+    // Fetch base64 thumbnails
+    const coursesWithThumbnails = await Promise.all(
+      courses.map(async (course) => {
+        const thumbnailBase64 = await getBase64Thumbnail(course.thumbnail);
+        return { ...course.toObject(), thumbnailBase64 };
+      })
+    );
+
+    res.json(coursesWithThumbnails);
   } catch (error) {
     console.error("Error fetching courses:", error);
     res.status(500).json({ error: "Server error" });
   }
 };
 
+
 /**
  * @desc Get a single course by ID (Only if teacherId matches)
  * @route GET /courses/:courseId
  * @access Public (Valid teacherId required)
  */
-
 exports.getCourseById = async (req, res) => {
   try {
-    const { courseId, } = req.params;
-    // const teacherId = req.teacher._id;
+    const { courseId } = req.params;
     const course = await Course.findById(courseId).populate("modules");
-    if (!course) return res.status(404).json({ message: "Course not found" });
-    
-    // if (course.teacherId.toString() !== teacherId.toString()) {
-    //   return res.status(403).json({ message: "You are not authorized to view this course" });
-    // }
 
-    res.json(course);
+    if (!course) return res.status(404).json({ message: "Course not found" });
+
+    const thumbnailBase64 = await getBase64Thumbnail(course.thumbnail);
+
+    res.status(200).json({ ...course.toObject(), thumbnailBase64 });
   } catch (error) {
     console.error("Error fetching course:", error);
-    res.status(500).json({ error: "Server error in course get by id",errormessage:error.message });
+    res.status(500).json({ message: "Error retrieving course" });
   }
 };
+
 
 
 /**
@@ -148,22 +183,29 @@ exports.getCourseById = async (req, res) => {
  */
 exports.getAllCoursesForTeacher = async (req, res) => {
   try {
-    // const teacherId = req.teacher._id;
+    const { teacherId } = req.params;
 
-    const teacherId = req.params.teacherId;
-    // Check if teacher exists
+    // Validate teacher
     const teacher = await Teacher.findById(teacherId);
     if (!teacher) return res.status(404).json({ message: "Teacher not found" });
 
-    // Find courses by teacherId
     const courses = await Course.find({ teacherId }).populate("modules", "title price");
 
-    res.json(courses);
+    // Fetch base64 thumbnails
+    const coursesWithThumbnails = await Promise.all(
+      courses.map(async (course) => {
+        const thumbnailBase64 = await getBase64Thumbnail(course.thumbnail);
+        return { ...course.toObject(), thumbnailBase64 };
+      })
+    );
+
+    res.json(coursesWithThumbnails);
   } catch (error) {
     console.error("Error fetching teacher's courses:", error);
     res.status(500).json({ error: "Server error" });
   }
 };
+
 
 /**
  * @desc Update a course (Only if teacherId matches)
