@@ -13,7 +13,7 @@ exports.getQuizById = async (req, res) => {
         const quiz = await Quiz.findById(quizId)
             .populate({
                 path: "questions",
-                select: "_id questionText options marks"
+                select: "_id question options marks"
             })
             .lean();
 
