@@ -2,6 +2,7 @@ const Student = require("../models/Student");
 const Quiz = require("../models/Quiz");
 const Question = require("../models/Question");
 const Leaderboard = require("../models/LeaderBoard");
+const mongoose = require("mongoose");
 
 exports.availableAllQuizzes =
 async (req, res) => {
