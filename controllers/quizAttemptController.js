@@ -3,24 +3,93 @@ const Quiz = require("../models/Quiz");
 const Question = require("../models/Question");
 const Leaderboard = require("../models/LeaderBoard");
 const mongoose = require("mongoose");
-
-exports.availableAllQuizzes =
-async (req, res) => {
+ 
+// ✅ Get Quiz by quizId (with attempted student data)
+exports.getQuizById = async (req, res) => {
     try {
-        const currentTime = new Date();
+        const { quizId } = req.params;
 
-        const quizzes = await Quiz.find({
-            $expr: {
-                $gt: [
-                    { $add: ["$startAt", { $multiply: ["$duration", 60000] }] }, // Expiry time
-                    currentTime
-                ]
+        // Find the quiz by ID
+        const quiz = await Quiz.findById(quizId)
+            .populate({
+                path: "questions",
+                select: "_id questionText options marks"
+            })
+            .lean();
+
+        if (!quiz) {
+            return res.status(404).json({ success: false, message: "Quiz not found" });
+        }
+
+        // Fetch students who attempted this quiz
+        const students = await Student.find({ "attemptedQuizzes.quizId": quizId })
+            .select("name email _id attemptedQuizzes")
+            .lean();
+
+        // Extract relevant student data
+        const attemptedStudents = students.map(student => {
+            const attempt = student.attemptedQuizzes.find(a => a.quizId.toString() === quizId);
+            return {
+                studentId: student._id,
+                name: student.name,
+                email: student.email,
+                marksObtained: attempt.marks,
+                timeTaken: attempt.timeTaken
+            };
+        });
+
+        res.status(200).json({
+            success: true,
+            quiz: {
+                ...quiz,
+                attemptedStudents
             }
-        }).select("_id title topic totalMarks rewardPoints duration startAt description questions");
+        });
+    } catch (error) {
+        console.error("Error fetching quiz by ID:", error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+};
 
-        // Format response
+// ✅ Get all available quizzes (with attempted student data)
+exports.availableAllQuizzes = async (req, res) => {
+    try {
+        // Fetch all quizzes
+        const quizzes = await Quiz.find()
+            .populate({
+                path: "questions",
+                select: "_id questionText options marks"
+            })
+            .lean();
+
+        // Fetch all students who attempted quizzes
+        const students = await Student.find({ "attemptedQuizzes.0": { $exists: true } })
+            .select("name email _id attemptedQuizzes")
+            .lean();
+
+        // Create a mapping of attempted students per quiz
+        const quizAttemptsMap = {};
+        students.forEach(student => {
+            student.attemptedQuizzes.forEach(attempt => {
+                const quizId = attempt.quizId.toString();
+
+                if (!quizAttemptsMap[quizId]) {
+                    quizAttemptsMap[quizId] = [];
+                }
+
+                quizAttemptsMap[quizId].push({
+                    studentId: student._id,
+                    name: student.name,
+                    email: student.email,
+                    marksObtained: attempt.marks,
+                    timeTaken: attempt.timeTaken
+                });
+            });
+        });
+
+        // Attach attempted students to each quiz
         const response = quizzes.map(quiz => ({
-            id:quiz._id,
+            id: quiz._id,
             title: quiz.title || "Untitled",
             topic: quiz.topic,
             totalMarks: quiz.totalMarks,
@@ -28,63 +97,17 @@ async (req, res) => {
             duration: quiz.duration,
             startAt: quiz.startAt,
             description: quiz.description,
-            totalQuestions: quiz.questions.length
+            totalQuestions: quiz.questions.length,
+            attemptedStudents: quizAttemptsMap[quiz._id.toString()] || []
         }));
 
         res.status(200).json({ success: true, quizzes: response });
     } catch (error) {
-        console.error("Error fetching quizzes:", error);
+        console.error("Error fetching available quizzes:", error);
         res.status(500).json({ success: false, message: "Internal server error" });
     }
 };
 
-// ✅ Get Quiz by ID (Without Answers)
-exports.getQuizById = async (req, res) => {
-    try {
-        const { quizId } = req.params;
-
-        if (!quizId) {
-            return res.status(400).json({ message: "Quiz ID is required." });
-        }
-
-        // ✅ Fetch the quiz
-        const quiz = await Quiz.findById(quizId).populate("questions");
-
-        if (!quiz) {
-            return res.status(404).json({ message: "Quiz not found." });
-        }
-
-        // ✅ Check if the quiz is allowed to be accessed
-        const currentTime = Date.now();
-        if (quiz.startAt > currentTime) {
-            return res.status(403).json({ message: "Quiz has not started yet." });
-        }
-
-        // ✅ Remove correct answers from questions
-        const sanitizedQuestions = quiz.questions.map(q => ({
-            _id: q._id,
-            questionText: q.question,
-            options: q.options,
-            marks: q.marks
-        }));
-
-        // ✅ Send response (with the correct backend-controlled start time)
-        res.status(200).json({
-            quizId: quiz._id,
-            topic: quiz.topic,
-            description: quiz.description,
-            duration: quiz.duration,
-            totalMarks: quiz.totalMarks,
-            startAt: quiz.startAt, // ✅ Start time is from DB (not user input)
-            rewardPoints: quiz.rewardPoints,
-            questions: sanitizedQuestions
-        });
-
-    } catch (error) {
-        console.error("Error:", error);
-        res.status(500).json({ message: "Server error", error });
-    }
-};
 
 // Submit Quiz  ( attempt only per user )
 exports.submitQuizAttempt = async (req, res) => {
