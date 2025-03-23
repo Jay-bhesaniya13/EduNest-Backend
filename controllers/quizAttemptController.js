@@ -85,48 +85,49 @@ exports.getQuizById = async (req, res) => {
     }
 };
 
-
+// Submit Quiz  ( attempt only per user )
 exports.submitQuizAttempt = async (req, res) => {
+    const session = await mongoose.startSession(); // 🛑 Start a MongoDB session
+    session.startTransaction(); // 🔄 Begin transaction
+
     try {
         const { quizId, answers } = req.body;
         const studentId = req.studentId;
 
-        console.log("recieved quizId:"+quizId)
-        console.log("Recieved Answer:"+answers)
+        console.log("Received quizId:", quizId);
+        console.log("Received Answers:", answers);
 
         if (!quizId || !answers || !Array.isArray(answers)) {
             return res.status(400).json({ message: "Quiz ID and answers array are required." });
         }
 
         // ✅ Fetch the quiz
-        const quiz = await Quiz.findById(quizId);
-        if (!quiz) return res.status(404).json({ message: "Quiz not found." });
+        const quiz = await Quiz.findById(quizId).session(session);
+        if (!quiz) throw new Error("Quiz not found.");
 
-        // ✅ Ensure quiz has already started
+        // ✅ Ensure quiz has started
         const currentTime = Date.now();
         if (quiz.startAt > currentTime) {
-            return res.status(403).json({ message: "Quiz has not started yet." });
+            throw new Error("Quiz has not started yet.");
         }
 
         // ✅ Fetch the student
-        const student = await Student.findById(studentId);
-        if (!student) return res.status(404).json({ message: "Student not found." });
+        const student = await Student.findById(studentId).session(session);
+        if (!student) throw new Error("Student not found.");
 
         // ❌ Prevent multiple attempts (Student can only attempt once)
         const hasAttempted = student.attemptedQuizzes.some(q => q.quizId.toString() === quizId);
-        if (hasAttempted) {
-            return res.status(403).json({ message: "You have already attempted this quiz." });
-        }
+        if (hasAttempted) throw new Error("You have already attempted this quiz.");
 
         // ✅ Calculate `timeTaken`
         const timeTaken = Math.floor((currentTime - quiz.startAt) / 1000);
 
         // ✅ Fetch all questions for this quiz
         const questionIds = answers.map(a => a.questionId);
-        const questions = await Question.find({ _id: { $in: questionIds } });
+        const questions = await Question.find({ _id: { $in: questionIds } }).session(session);
 
         if (questions.length !== answers.length) {
-            return res.status(400).json({ message: "Some questions are missing or invalid." });
+            throw new Error("Some questions are missing or invalid.");
         }
 
         let totalMarks = 0;
@@ -153,11 +154,14 @@ exports.submitQuizAttempt = async (req, res) => {
         // ✅ Increment `quiz.attempts`
         quiz.attempts += 1;
 
-        // ✅ Update both student and quiz simultaneously
-        await Promise.all([student.save(), quiz.save()]);
+        // ✅ Update both student and quiz
+        await Promise.all([
+            student.save({ session }),
+            quiz.save({ session })
+        ]);
 
         // ✅ Update leaderboard
-        let leaderboard = await Leaderboard.findOne({ quizId });
+        let leaderboard = await Leaderboard.findOne({ quizId }).session(session);
 
         if (!leaderboard) {
             leaderboard = new Leaderboard({ quizId, topStudents: [] });
@@ -172,14 +176,18 @@ exports.submitQuizAttempt = async (req, res) => {
             return b.marks - a.marks;
         });
 
-        await leaderboard.save();
+        await leaderboard.save({ session });
+
+        // ✅ COMMIT Transaction (If everything goes well)
+        await session.commitTransaction();
+        session.endSession();
 
         res.status(200).json({
             message: "Quiz attempt recorded successfully.",
             marksObtained: totalMarks,
             maxMarks,
             timeTaken,
-            attempts: quiz.attempts, // 🆕 Return the updated number of attempts
+            attempts: quiz.attempts,
             submittedAnswers,
             correctAnswers: questions.map(q => ({
                 questionId: q._id,
@@ -189,6 +197,11 @@ exports.submitQuizAttempt = async (req, res) => {
 
     } catch (error) {
         console.error("Error in submitQuizAttempt:", error);
+
+        // ❌ ROLLBACK Transaction on Error
+        await session.abortTransaction();
+        session.endSession();
+
         res.status(500).json({ message: "Server error", error: error.message || error });
     }
 };
