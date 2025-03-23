@@ -15,10 +15,11 @@ async (req, res) => {
                     currentTime
                 ]
             }
-        }).select("title topic totalMarks rewardPoints duration startAt description questions");
+        }).select("_id title topic totalMarks rewardPoints duration startAt description questions");
 
         // Format response
         const response = quizzes.map(quiz => ({
+            id:quiz._id,
             title: quiz.title || "Untitled",
             topic: quiz.topic,
             totalMarks: quiz.totalMarks,
