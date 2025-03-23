@@ -91,6 +91,9 @@ exports.submitQuizAttempt = async (req, res) => {
         const { quizId, answers } = req.body;
         const studentId = req.studentId;
 
+        console.log("recieved quizId:"+quizId)
+        console.log("Recieved Answer:"+answers)
+
         if (!quizId || !answers || !Array.isArray(answers)) {
             return res.status(400).json({ message: "Quiz ID and answers array are required." });
         }
