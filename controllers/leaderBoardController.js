@@ -5,19 +5,44 @@ const Student = require("../models/Student");
 // Get leaderboard for a specific quiz
 exports.getLeaderboard = async (req, res) => {
     try {
-        const { quizId } = req.params;
-        const leaderboard = await Leaderboard.findOne({ quizId })
-            .populate("topStudents.studentId", "name email");
+        let { quizId } = req.params;
+
+        let leaderboard;
+
+        if (quizId) {
+            // ✅ Find leaderboard by quiz ID
+            leaderboard = await Leaderboard.findOne({ quizId })
+                .populate("topStudents.studentId", "name email");
+        } else {
+            // ✅ Get the latest quiz and its leaderboard
+            const latestQuiz = await Quiz.findOne().sort({ startAt: -1 }); // Latest quiz by start time
+            
+            if (!latestQuiz) {
+                return res.status(404).json({ message: "No quizzes found" });
+            }
+
+            quizId = latestQuiz._id; // Use latest quiz ID
+            leaderboard = await Leaderboard.findOne({ quizId })
+                .populate("topStudents.studentId", "name email");
+        }
 
         if (!leaderboard) {
             return res.status(404).json({ message: "Leaderboard not found" });
         }
 
-        res.status(200).json(leaderboard);
+        // ✅ Return leaderboard with quizId
+        res.status(200).json({ 
+            success: true, 
+            quizId, 
+            leaderboard 
+        });
+
     } catch (error) {
+        console.error("Error fetching leaderboard:", error);
         res.status(500).json({ message: "Server error", error });
     }
 };
+
 
 // Update leaderboard when a student completes a quiz
 exports.updateLeaderboard = async (req, res) => {
