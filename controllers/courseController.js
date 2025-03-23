@@ -41,6 +41,91 @@ const getBase64Thumbnail = async (thumbnailUrl) => {
  * @access Public (Valid teacherId required)
  */
 
+// exports.createCourse = async (req, res) => {
+//   try {
+//     const { title, description, modules, level } = req.body;
+//     const teacherId = req.teacher._id;
+
+//     // Validate teacher
+//     const teacher = await Teacher.findById(teacherId);
+//     if (!teacher) return res.status(404).json({ message: "Teacher not found" });
+
+//     // Validate modules
+//     if (!modules || !Array.isArray(modules) || modules.length === 0) {
+//       return res.status(400).json({ message: "At least one module is required" });
+//     }
+
+//     if (!modules.every(id => mongoose.Types.ObjectId.isValid(id))) {
+//       return res.status(400).json({ message: "One or more module IDs are invalid" });
+//     }
+
+//     // Fetch modules and validate ownership
+//     const moduleDocs = await Module.find({ _id: { $in: modules } });
+//     if (moduleDocs.length !== modules.length) {
+//       return res.status(400).json({ message: "One or more modules are invalid" });
+//     }
+
+//     if (moduleDocs.some(module => module.teacherId.toString() !== teacherId.toString())) {
+//       return res.status(403).json({ message: "All modules must belong to the same teacher" });
+//     }
+
+//     // Default thumbnail URL
+//     let thumbnailUrl = "https://picsum.photos/1920/1080";
+
+//     // If thumbnail uploaded, process it
+//     if (req.file) {
+//       const allowedFormats = ["image/jpeg", "image/jpg"];
+//       if (!allowedFormats.includes(req.file.mimetype)) {
+//         return res.status(400).json({ message: "Only JPG/JPEG format is allowed for thumbnails" });
+//       }
+
+//       const fileName = `course_thumbnail/${Date.now()}_${req.file.originalname}`;
+//       const fileUpload = bucket.file(fileName);
+
+//       await new Promise((resolve, reject) => {
+//         fs.createReadStream(req.file.path)
+//           .pipe(fileUpload.createWriteStream({ metadata: { contentType: req.file.mimetype } }))
+//           .on("error", err => reject(res.status(500).json({ error: "Error uploading thumbnail" })))
+//           .on("finish", async () => {
+//             const [url] = await fileUpload.getSignedUrl({ action: "read", expires: "03-01-2030" });
+//             thumbnailUrl = url;
+//             resolve();
+//           });
+//       });
+
+//       fs.unlink(req.file.path, err => { if (err) console.error("Failed to delete temp file:", err); });
+//     }
+
+//     // Calculate course price
+//     const totalModulePrice = moduleDocs.reduce((sum, module) => sum + module.price, 0);
+//     const discountAmount = (totalModulePrice * COURSE_DISCOUNT_PERCENTAGE) / 100;
+//     const price = totalModulePrice - discountAmount;
+//     const sell_price = price + (price * COURSE_PRICE_CHARGE_PERCENTAGE) / 100;
+
+//     // Create course
+//     const newCourse = new Course({
+//       title,
+//       description,
+//       modules,
+//       teacherId,
+//       thumbnail: thumbnailUrl,
+//       level,
+//       price,
+//       sell_price
+//     });
+
+//     await newCourse.save();
+
+//     // Update teacher's `course_created` count
+//     await Teacher.findByIdAndUpdate(teacherId, { $inc: { course_created: 1 } });
+
+//     res.status(201).json({ message: "Course created successfully", course: newCourse });
+//   } catch (error) {
+//     console.error("Error creating course:", error);
+//     res.status(500).json({ error: "Server error" });
+//   }
+// };
+
 exports.createCourse = async (req, res) => {
   try {
     const { title, description, modules, level } = req.body;
@@ -71,6 +156,7 @@ exports.createCourse = async (req, res) => {
 
     // Default thumbnail URL
     let thumbnailUrl = "https://picsum.photos/1920/1080";
+    let thumbnailBase64 = null; // Base64 version of the thumbnail
 
     // If thumbnail uploaded, process it
     if (req.file) {
@@ -94,6 +180,20 @@ exports.createCourse = async (req, res) => {
       });
 
       fs.unlink(req.file.path, err => { if (err) console.error("Failed to delete temp file:", err); });
+
+      // 🔹 Extract Firestore Document ID from URL
+      const regex = /course_thumbnail%2F([^?]+)/;
+      const match = thumbnailUrl.match(regex);
+      if (match && match[1]) {
+        const imageId = match[1];
+
+        // 🔹 Retrieve image data from Firestore
+        const imageDoc = await db.collection("images").doc(imageId).get();
+        if (imageDoc.exists) {
+          const imageData = imageDoc.data();
+          thumbnailBase64 = imageData.base64; // Assuming the Firestore document has a `base64` field
+        }
+      }
     }
 
     // Calculate course price
@@ -119,7 +219,11 @@ exports.createCourse = async (req, res) => {
     // Update teacher's `course_created` count
     await Teacher.findByIdAndUpdate(teacherId, { $inc: { course_created: 1 } });
 
-    res.status(201).json({ message: "Course created successfully", course: newCourse });
+    res.status(201).json({ 
+      message: "Course created successfully", 
+      course: { ...newCourse.toObject(), thumbnailBase64 } 
+    });
+
   } catch (error) {
     console.error("Error creating course:", error);
     res.status(500).json({ error: "Server error" });
