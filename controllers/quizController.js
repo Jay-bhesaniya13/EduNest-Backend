@@ -20,12 +20,13 @@ exports.createQuiz = async (req, res) => {
           rewardPoints,
           totalMarks
       });
-
+  console.log("New Quiz req body:"+newQuiz)
       await newQuiz.save();
 
        
       res.status(201).json({ message: "Quiz created successfully", quiz: newQuiz });
   } catch (error) {
+    console.log("Error in Quiz:"+error.message)
       res.status(500).json({ error: error.message });
   }
 };

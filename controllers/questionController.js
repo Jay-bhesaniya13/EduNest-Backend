@@ -16,6 +16,7 @@ exports.createQuestion = async (req, res) => {
     await newQuestion.save();
     res.status(201).json({ message: "Question created successfully", question: newQuestion });
   } catch (error) {
+    console.log("Errorin Question:"+error.message)
     res.status(500).json({ error: error.message });
   }
 };
