@@ -5,7 +5,7 @@ const {
   handleFileUpload,
   getMedia,
   getContent,
-  getAllContent,
+//   getAllContent,
   deleteContent,
 } = require("../controllers/contentController");
 
@@ -22,7 +22,7 @@ router.get("/media/:type/:id", getMedia);
 router.get("/:contentId", getContent);
 
 // Get All Content
-router.get("/all", getAllContent);
+// router.get("/all", getAllContent);
 
 // Delete Content by ID
 router.delete("/delete/:contentId", deleteContent);
