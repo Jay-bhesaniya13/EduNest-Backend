@@ -62,7 +62,7 @@ exports.getQuizById = async (req, res) => {
         // ✅ Remove correct answers from questions
         const sanitizedQuestions = quiz.questions.map(q => ({
             _id: q._id,
-            questionText: q.questionText,
+            questionText: q.question,
             options: q.options,
             marks: q.marks
         }));
