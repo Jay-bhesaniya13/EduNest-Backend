@@ -51,6 +51,8 @@ exports.getQuizById = async (req, res) => {
         res.status(500).json({ message: "Server error", error });
     }
 };
+
+
 exports.submitQuizAttempt = async (req, res) => {
     try {
         const { quizId, answers } = req.body;

@@ -6,7 +6,6 @@ const Content = require("../models/Content");
 
 // Define file type filters for image and video
 const fileFilter = (req, file, cb) => {
-
   const allowedImageTypes = ["image/jpeg", "image/png", "image/gif"];
   const allowedVideoTypes = ["video/mp4", "video/mov", "video/avi"];
 
@@ -42,7 +41,6 @@ const getVideoDuration = (filePath) => {
 exports.handleFileUpload = async (req, res) => {
   console.log("Request body:", req.body);
   console.log("Received file:", req.file);
-console.log("Private Key:", process.env.FIREBASE_PRIVATE_KEY.substring(0, 50)); // Don't log full key
 
   const { type, header, text, link } = req.body;
   const mediaFile = req.file;
@@ -71,21 +69,23 @@ console.log("Private Key:", process.env.FIREBASE_PRIVATE_KEY.substring(0, 50)); 
       const fileBuffer = fs.readFileSync(filePath);
       const base64Data = fileBuffer.toString("base64");
 
-      // Extract video duration
+      let mediaCollection = type === "image" ? "images" : "videos";
+
+      // Extract video duration if it's a video
       if (type === "video") {
         const durationInSeconds = await getVideoDuration(filePath);
         contentData.durationHours = Math.floor(durationInSeconds / 3600);
         contentData.durationMinutes = Math.floor((durationInSeconds % 3600) / 60);
       }
 
-      // Save Base64 data to Firestore
-      const mediaDoc = await db.collection("media").add({
+      // Save Base64 data to Firestore in separate collections
+      const mediaDoc = await db.collection(mediaCollection).add({
         mediaData: base64Data,
         mediaType: mediaFile.mimetype,
         createdAt: admin.firestore.Timestamp.now(),
       });
 
-      contentData.mediaUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/media/${mediaDoc.id}`;
+      contentData.mediaUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${mediaCollection}/${mediaDoc.id}`;
 
       // Remove temporary file
       fs.unlink(filePath, (err) => {
@@ -97,29 +97,79 @@ console.log("Private Key:", process.env.FIREBASE_PRIVATE_KEY.substring(0, 50)); 
     const newContent = new Content(contentData);
     await newContent.save();
 
-    res.status(201).json({ message: "Content uploaded successfully", newContent});
+    res.status(201).json({ message: "Content uploaded successfully", newContent });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error uploading content", error: error.message });
   }
 };
 
-/**
- * Retrieves content by ID (Text, Image, Video, Link)
- */
-exports.getContent = async (req, res) => {
-  const { contentId } = req.params;
-
+exports.getMedia = async (req, res) => {
   try {
+    const { type, id } = req.params;
+    if (!["image", "video"].includes(type)) {
+      return res.status(400).json({ message: "Invalid media type." });
+    }
+
+    const mediaDoc = await db.collection(type === "image" ? "images" : "videos").doc(id).get();
+
+    if (!mediaDoc.exists) {
+      return res.status(404).json({ message: "Media not found" });
+    }
+
+    const mediaData = mediaDoc.data();
+    const base64Media = Buffer.from(mediaData.mediaData, "base64");
+
+    res.setHeader("Content-Type", mediaData.mediaType);
+    res.send(base64Media);
+  } catch (error) {
+    console.error("Error fetching media:", error);
+    res.status(500).json({ message: "Error retrieving media" });
+  }
+};
+
+/**
+ * Retrieves media by ID (Image or Video)
+ */
+// exports.getMedia = async (req, res) => {
+//   try {
+//     const { type, id } = req.params;
+//     if (!["image", "video"].includes(type)) {
+//       return res.status(400).json({ message: "Invalid media type." });
+//     }
+
+//     const mediaDoc = await db.collection(type === "image" ? "images" : "videos").doc(id).get();
+
+//     if (!mediaDoc.exists) {
+//       return res.status(404).json({ message: "Media not found" });
+//     }
+
+//     const mediaData = mediaDoc.data();
+//     const base64Media = Buffer.from(mediaData.mediaData, "base64");
+
+//     res.setHeader("Content-Type", mediaData.mediaType);
+//     res.send(base64Media);
+//   } catch (error) {
+//     console.error("Error fetching media:", error);
+//     res.status(500).json({ message: "Error retrieving media" });
+//   }
+// };
+
+exports.getContent = async (req, res) => {
+  try {
+    const { contentId } = req.params;
+
+    // Find content in MongoDB
     const contentData = await Content.findById(contentId);
     if (!contentData) {
       return res.status(404).json({ message: "Content not found in MongoDB." });
     }
 
+    // If content is image or video, fetch media from Firestore
     if (contentData.type === "image" || contentData.type === "video") {
       const mediaId = contentData.mediaUrl.split("/").pop();
+      const mediaDoc = await db.collection(contentData.type === "image" ? "images" : "videos").doc(mediaId).get();
 
-      const mediaDoc = await db.collection("media").doc(mediaId).get();
       if (!mediaDoc.exists) {
         return res.status(404).json({ message: "Media not found in Firestore." });
       }
@@ -127,15 +177,19 @@ exports.getContent = async (req, res) => {
       const mediaData = mediaDoc.data();
       const base64Media = `data:${mediaData.mediaType};base64,${mediaData.mediaData}`;
 
-      return res.status(200).json({ content: { ...contentData.toObject(), mediaUrl: base64Media } });
+      return res.status(200).json({
+        content: { ...contentData.toObject(), mediaUrl: base64Media },
+      });
     }
 
     res.status(200).json({ content: contentData });
   } catch (error) {
-    console.error(error);
+    console.error("Error retrieving content:", error);
     res.status(500).json({ message: "Error retrieving content", error: error.message });
   }
 };
+
+
 
 /**
  * Retrieves all content from MongoDB

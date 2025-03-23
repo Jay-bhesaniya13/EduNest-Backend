@@ -353,40 +353,38 @@ exports.activateStudent = async (req, res) => {
   }
 };
 
-// 🔹 Get Student Details
-exports.getStudentDetails = async (req, res) => {
+// 🔹 Get All Students with Limited Fields
+exports.getAllStudents = async (req, res) => {
   try {
-    const { studentId } = req.params;
-
-    const student = await Student.findById(studentId)
+    const students = await Student.find()
       .populate("courses_enrolled.courseId", "title") // Get course names
       .select("profilepicURL name email contactNumber rewardPoints createdAt isActive courses_enrolled");
 
-    if (!student) {
-      return res.status(404).json({ success: false, message: "Student not found." });
+    if (!students.length) {
+      return res.status(404).json({ success: false, message: "No students found." });
     }
 
-    const totalCoursesEnrolled = student.courses_enrolled.length;
+    const formattedStudents = students.map((student) => ({
+      profilepicURL: student.profilepicURL,
+      name: student.name,
+      email: student.email,
+      contactNumber: student.contactNumber,
+      rewardPoints: student.rewardPoints,
+      joinedAt: student.createdAt,
+      isActive: student.isActive,
+      totalCoursesEnrolled: student.courses_enrolled?.length || 0,
+      courses: student.courses_enrolled?.map((c) => ({
+        courseId: c.courseId?._id,
+        courseTitle: c.courseId?.title,
+      })) || [],
+    }));
 
     res.status(200).json({
       success: true,
-      student: {
-        profilepicURL: student.profilepicURL,
-        name: student.name,
-        email: student.email,
-        contactNumber: student.contactNumber,
-        rewardPoints: student.rewardPoints,
-        joinedAt: student.createdAt,
-        isActive: student.isActive,
-        totalCoursesEnrolled,
-        courses: student.courses_enrolled.map((c) => ({
-          courseId: c.courseId._id,
-          courseTitle: c.courseId.title,
-        })),
-      },
+      students: formattedStudents,
     });
   } catch (error) {
-    console.error("Error getting student details:", error);
+    console.error("Error retrieving students:", error);
     res.status(500).json({ success: false, message: "Internal server error." });
   }
 };

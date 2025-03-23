@@ -10,7 +10,7 @@ const {
 
   getAllTeachers, activateTeacher, inactivateTeacher,
 
-  activateStudent, deactivateStudent, getStudentDetails,
+  activateStudent, deactivateStudent, getAllStudents,
 
   getAllCourses
 } = require("../controllers/adminController");
@@ -46,7 +46,7 @@ router.put("/student/deactivate/:studentId", deactivateStudent);
 router.put("/student/activate/:studentId", activateStudent);
 
 // Route to get student details
-router.get("/student/:studentId", getStudentDetails);
+router.get("/student", getAllStudents);
 
 // Route to get all courses
 router.get("/courses", authenticateAdmin, getAllCourses);

@@ -1,20 +1,30 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { handleFileUpload ,getContent,getAllContent,deleteContent} = require('../controllers/contentController'); // Import the controller
-const multer = require('multer');
-const {authTeacher}=require("../controllers/authController")
+const multer = require("multer");
+const {
+  handleFileUpload,
+  getMedia,
+  getContent,
+  getAllContent,
+  deleteContent,
+} = require("../controllers/contentController");
 
 // Multer configuration to handle file upload
-const upload = multer({ dest: 'uploads/' }); // Temp folder for file storage
+const upload = multer({ dest: "uploads/" });
 
 // Route to upload content (image/video/text)
-router.post('/create', upload.single('mediaFile'), handleFileUpload); // Handle file upload for content
+router.post("/create", upload.single("mediaFile"), handleFileUpload);
 
+// Route to retrieve media from Firestore (Image or Video)
+router.get("/media/:type/:id", getMedia);
 
- router.get("/:contentId", getContent); // Get Content by ID
-router.get("/all",getAllContent); // Get All Content
-router.delete("/delete/:contentId", deleteContent); // Delete Content by ID
+// Get Content by ID
+router.get("/:contentId", getContent);
 
+// Get All Content
+router.get("/all", getAllContent);
 
+// Delete Content by ID
+router.delete("/delete/:contentId", deleteContent);
 
 module.exports = router;

@@ -22,5 +22,6 @@ admin.initializeApp({
 });
 
 const db = getFirestore();
+const projectId = serviceAccount.project_id; 
 
-module.exports = { admin, db };
+module.exports = { admin, db,projectId };
