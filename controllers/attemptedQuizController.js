@@ -62,7 +62,7 @@
 const Student = require("../models/Student");
 const Quiz = require("../models/Quiz");
 
-// ✅ Get a specific attempted quiz by quiz ID
+
 exports.getStudentAttemptedQuizDetails = async (req, res) => {
     try {
         const studentId = req.studentId;
@@ -86,19 +86,23 @@ exports.getStudentAttemptedQuizDetails = async (req, res) => {
         }
 
         // ✅ Fetch all questions for the quiz
-        const quizQuestions = await Quiz.findById(quizId).populate({
+        const quizData = await Quiz.findById(quizId).populate({
             path: "questions",
-            select: "correctAnswerIndex"
+            select: "question options correctAnswerIndex correctAnswer marks"
         });
 
-        if (!quizQuestions) {
+        if (!quizData) {
             return res.status(404).json({ message: "Quiz questions not found." });
         }
 
-        // ✅ Map correct answers
-        const correctAnswers = quizQuestions.questions.map(q => ({
+        // ✅ Format question data
+        const questionsWithAnswers = quizData.questions.map(q => ({
             questionId: q._id,
-            correctAnswerIndex: q.correctAnswerIndex
+            question: q.question,
+            options: q.options,
+            correctAnswerIndex: q.correctAnswerIndex,
+            correctAnswer: q.correctAnswer,  // ✅ Include the correct answer text
+            marks: q.marks
         }));
 
         res.status(200).json({
@@ -110,7 +114,7 @@ exports.getStudentAttemptedQuizDetails = async (req, res) => {
             marksObtained: attemptedQuiz.marks,
             timeTaken: attemptedQuiz.timeTaken,
             submittedAnswers: attemptedQuiz.submittedAnswers,
-            correctAnswers // ✅ Include correct answers for each question
+            questions: questionsWithAnswers // ✅ Include detailed question data
         });
 
     } catch (error) {
@@ -118,6 +122,7 @@ exports.getStudentAttemptedQuizDetails = async (req, res) => {
         res.status(500).json({ success: false, message: "Server error", error });
     }
 };
+
 
 // ✅ Get all attempted quizzes by a student
 exports.getAllAttemptedQuizzes = async (req, res) => {
