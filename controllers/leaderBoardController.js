@@ -3,18 +3,18 @@ const Quiz = require("../models/Quiz");
 const Student = require("../models/Student");
 
 // Get leaderboard for a specific quiz
-// Get leaderboard for a specific quiz
 exports.getLeaderboard = async (req, res) => {
     try {
         let { quizId } = req.params;
 
         let leaderboard;
         let quiz;
+        let quizTopic;
 
         if (quizId) {
             // ✅ Find the quiz by ID
-            quiz = await Quiz.findById(quizId).select("totalMarks rewardPoints");
-
+            quiz = await Quiz.findById(quizId).select("totalMarks rewardPoints topic");
+            quizTopic=quiz.topic;
             if (!quiz) {
                 return res.status(404).json({ message: "Quiz not found" });
             }
@@ -24,9 +24,9 @@ exports.getLeaderboard = async (req, res) => {
                 .populate("topStudents.studentId", "name email");
         } else {
             // ✅ Get the latest quiz and its leaderboard
-            quiz = await Quiz.findOne().sort({ startAt: -1 }).select("totalMarks rewardPoints");
+            quiz = await Quiz.findOne().sort({ startAt: -1 }).select("totalMarks rewardPoints topic");
 
-            if (!quiz) {
+             if (!quiz) {
                 return res.status(404).json({ message: "No quizzes found" });
             }
 
@@ -43,6 +43,8 @@ exports.getLeaderboard = async (req, res) => {
         res.status(200).json({ 
             success: true, 
             quizId, 
+             quizTopic,
+             topic:quiz.topic,
             totalMarks: quiz.totalMarks,
             rewardPoints: quiz.rewardPoints,
             leaderboard 

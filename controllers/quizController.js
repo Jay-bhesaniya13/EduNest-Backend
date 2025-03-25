@@ -22,7 +22,7 @@ exports.createQuiz = async (req, res) => {
       });
   console.log("New Quiz req body:"+newQuiz)
       await newQuiz.save();
-
+  
        
       res.status(201).json({ message: "Quiz created successfully", quiz: newQuiz });
   } catch (error) {
