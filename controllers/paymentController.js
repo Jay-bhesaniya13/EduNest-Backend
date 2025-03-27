@@ -104,14 +104,15 @@ exports.verifyPaymentController = async (req, res) => {
         await Reward.findOneAndUpdate(
             { student: studentId },
             { 
-                $inc: { pointsChanged: transaction.rewardPoints },
                 $push: { 
-                    reasons: `Added via payment: ${payment_id}`, 
+                    pointsChanged: transaction.rewardPoints,
+                    reasons: `Added via payment: ${payment_id}`,
                     timestamps: Date.now()
                 } 
             },
             { upsert: true, new: true }
         );
+        
 
         console.log(`✅ Reward points (${transaction.rewardPoints}) added for Student ID: ${studentId}`);
 
