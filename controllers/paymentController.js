@@ -1,84 +1,36 @@
 const express = require("express");
 const Razorpay = require("razorpay");
 const Transaction = require("../models/Transaction");
-require("dotenv").config();
 const crypto = require("crypto");
 const Reward = require("../models/Reward");
+const Student = require("../models/Student");
+const nodemailer = require("nodemailer"); // ✅ Missing import added
+require("dotenv").config();
 
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
     key_secret: process.env.RAZORPAY_SECRET,
 });
 
-
-const sendRewardEmail = async (studentId, points, reason) => {
-    try {
-        const student = await Student.findById(studentId);
-        if (!student || !student.email) return;
-
-        const color = points > 0 ? "green" : "yellow";
-        const sign = points > 0 ? "+" : "";
-
-        // Email Body
-        const emailHTML = `
-            <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f5f5f5;">
-                <div style="max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);">
-                    <h2 style="color: green; text-align: center;">EduNest Reward Points Update</h2>
-                    <p style="font-size: 16px; color: #333;">Dear <strong>${student.name}</strong>,</p>
-                    <p style="font-size: 16px; color: #333;">Your reward points have been updated.</p>
-                    <div style="padding: 10px; border-radius: 5px; background-color: ${color}; color: white; text-align: center; font-size: 18px;">
-                        <strong>${sign}${points} Points</strong>
-                    </div>
-                    <p style="font-size: 16px; color: #333;">Reason: <strong>${reason}</strong></p>
-                    <p style="text-align: center; margin-top: 20px;">
-                        <a href="https://edunest.com/rewards" style="background: green; color: white; text-decoration: none; padding: 10px 20px; border-radius: 5px;">View Rewards</a>
-                    </p>
-                </div>
-            </div>
-        `;
-
-        // Email Configuration
-        const transporter = nodemailer.createTransport({
-            service: "gmail",
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS
-            }
-        });
-
-        await transporter.sendMail({
-            from: `"EduNest" <${process.env.EMAIL_USER}>`,
-            to: student.email,
-            subject: "Your Reward Points Have Been Updated",
-            html: emailHTML
-        });
-
-        console.log(`📧 Reward email sent to ${student.email}`);
-    } catch (error) {
-        console.error("❌ Error sending reward email:", error.message);
-    }
+// ✅ Map Razorpay's method to allowed payment methods
+const mapRazorpayMethod = (method) => {
+    if (method === "upi") return "upi";
+    if (method === "netbanking") return "net_banking";
+    if (method === "card") return "card";
+    return null; // Ignore invalid method
 };
 
-
-// ✅ Create Razorpay Order
+// ✅ Create Razorpay Order (No Payment Method Stored Yet)
 exports.createOrderController = async (req, res) => {
     try {
-        console.log("create order controller entred")
-        const { amount, paymentMethod } = req.body;
-        const studentId = req.studentId; // Get studentId from auth middleware
-      console.log("requesting for create order for studentId:"+studentId)
-      console.log(`he will pay ${amount} by payment method:{paymentMethod}`)
+        const { amount } = req.body;
+        const studentId = req.studentId;
+
         if (!studentId || !amount) {
             return res.status(400).json({ message: "Invalid request. Student ID or amount missing." });
         }
 
-          // ✅ Payment method validation
-          const validPaymentMethods = ["credit_card", "debit_card", "upi", "net_banking"];
-          if (!validPaymentMethods.includes(paymentMethod)) {
-              return res.status(400).json({ message: "Invalid payment method. Choose from: credit_card, debit_card, upi, net_banking" });
-          }
-
-        console.log(`🟢 Creating order: Amount: ₹${amount}, Payment Method: ${paymentMethod}`);
+        console.log(`🟢 Creating order: Amount: ₹${amount}`);
 
         const order = await razorpay.orders.create({
             amount: amount * 100, // Convert to paisa
@@ -90,60 +42,89 @@ exports.createOrderController = async (req, res) => {
             student: studentId,
             amount,
             rewardPoints: amount, // 1 Rs = 1 Reward Point
-            paymentMethod,
             orderId: order.id,
             transactionId: "",
             status: "pending",
+            paymentMethod: "", // ✅ Payment method will be updated after successful payment
         });
 
         await transaction.save();
-        console.log("create order controller exited")
         res.json({ success: true, order });
-        
+
     } catch (error) {
         console.error("❌ Error creating order:", error.message);
         res.status(500).json({ error: "Error creating order", details: error.message });
     }
 };
 
-// ✅ Verify Razorpay Payment
+// ✅ Function to Send Email
+const sendPaymentSuccessEmail = async (studentEmail, studentName, amount, rewardPoints) => {
+    try {
+        let transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS,
+            },
+        });
+
+        let mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: studentEmail,
+            subject: "Payment Successful - Reward Points Added!",
+            html: `
+                <h2>Payment Successful</h2>
+                <p>Dear ${studentName},</p>
+                <p>Your payment of ₹${amount} has been successfully processed.</p>
+                <p>You have earned <strong>${rewardPoints} reward points</strong> as part of this transaction.</p>
+                <p>Thank you for using our platform!</p>
+                <br>
+                <p>Best Regards,</p>
+                <p>EduNest Team</p>
+            `,
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log("📧 Payment success email sent to:", studentEmail);
+    } catch (error) {
+        console.error("❌ Error sending email:", error.message);
+    }
+};
+
+// ✅ Verify Razorpay Payment & Store Actual Payment Method
 exports.verifyPaymentController = async (req, res) => {
     try {
-        console.log("🔍 verifyPaymentController entered");
-
-        const { order_id, payment_id, signature } = req.body;
+        const { order_id, payment_id, signature, method } = req.body;
         const studentId = req.studentId;
 
-        console.log("🔍 Verifying payment for Student ID:", studentId);
-        console.log(`🔹 Received Order ID: ${order_id}, Payment ID: ${payment_id}, Signature: ${signature}`);
-
-        if (!order_id || !payment_id || !signature) {
-            console.error("❌ Missing required fields:", req.body);
+        if (!order_id || !payment_id || !signature || !method) {
             return res.status(400).json({ message: "Invalid request. Missing required fields." });
         }
 
+        // ✅ Verify Signature
         const generatedSignature = crypto.createHmac("sha256", process.env.RAZORPAY_SECRET)
             .update(order_id + "|" + payment_id)
             .digest("hex");
 
-        console.log("🔍 Expected Signature:", generatedSignature);
-        console.log("🔍 Received Signature:", signature);
-
         if (generatedSignature !== signature) {
-            console.error("❌ Signature Mismatch! Payment verification failed.");
             await Transaction.findOneAndUpdate({ orderId: order_id }, { status: "failed" });
             return res.status(400).json({ message: "Payment verification failed. Signature mismatch." });
         }
 
-        // ✅ Update Transaction Status
+        // ✅ Get Actual Payment Method from Razorpay
+        const mappedMethod = mapRazorpayMethod(method);
+        if (!mappedMethod) {
+            return res.status(400).json({ message: "Invalid payment method detected!" });
+        }
+
+        // ✅ Update Transaction with Actual Payment Method
         const transaction = await Transaction.findOneAndUpdate(
             { orderId: order_id },
-            { transactionId: payment_id, status: "success" },
+            { transactionId: payment_id, status: "success", paymentMethod: mappedMethod },
             { new: true }
         );
 
         if (!transaction) {
-            console.error("❌ Transaction record not found for Order ID:", order_id);
             return res.status(404).json({ message: "Transaction not found" });
         }
 
@@ -156,26 +137,24 @@ exports.verifyPaymentController = async (req, res) => {
                 $push: { 
                     pointsChanged: transaction.rewardPoints,
                     reasons: `Added via payment: ${payment_id}`,
-                    timestamps: Date.now()
+                    timestamps: [Date.now()]
                 } 
             },
             { upsert: true, new: true }
         );
 
-        console.log(`✅ Reward points (${transaction.rewardPoints}) added for Student ID: ${studentId}`);
-
-        // ✅ Calculate total reward points and update Student model
+        // ✅ Update Total Reward Points in Student Model
         const reward = await Reward.findOne({ student: studentId });
 
         if (reward) {
             const totalPoints = reward.pointsChanged.reduce((acc, points) => acc + points, 0);
-
             await Student.findByIdAndUpdate(studentId, { rewardPoints: totalPoints });
+        }
 
-            console.log(`✅ Student (${studentId}) reward points updated to: ${totalPoints}`);
-
-            // ✅ Send Reward Email
-            await sendRewardEmail(studentId, transaction.rewardPoints, `Added via payment: ${payment_id}`);
+        // ✅ Fetch Student Details for Email
+        const student = await Student.findById(studentId);
+        if (student) {
+            sendPaymentSuccessEmail(student.email, student.name, transaction.amount, transaction.rewardPoints);
         }
 
         res.json({ success: true, message: "Payment successful, rewards added!" });
