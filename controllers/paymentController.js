@@ -13,10 +13,15 @@ const razorpay = new Razorpay({
 // ✅ Create Razorpay Order
 exports.createOrderController = async (req, res) => {
     try {
-        const { studentId, amount, paymentMethod } = req.body;
+        const { amount, paymentMethod } = req.body;
+        const studentId = req.studentId; // Get studentId from auth middleware
+      console.log("requesting for create order for studentId:"+studentId)
+      console.log(`he will pay ${amount} by payment method:{paymentMethod}`)
         if (!studentId || !amount) {
-            return res.status(400).json({ message: "Invalid request" });
+            return res.status(400).json({ message: "Invalid request. Student ID or amount missing." });
         }
+
+        console.log(`🟢 Creating order: Amount: ₹${amount}, Payment Method: ${paymentMethod}`);
 
         const order = await razorpay.orders.create({
             amount: amount * 100, // Convert to paisa
@@ -37,6 +42,7 @@ exports.createOrderController = async (req, res) => {
         await transaction.save();
         res.json({ success: true, order });
     } catch (error) {
+        console.error("❌ Error creating order:", error.message);
         res.status(500).json({ error: "Error creating order", details: error.message });
     }
 };
@@ -44,11 +50,15 @@ exports.createOrderController = async (req, res) => {
 // ✅ Verify Razorpay Payment
 exports.verifyPaymentController = async (req, res) => {
     try {
-        const { order_id, payment_id, signature, studentId } = req.body;
-
+        const { order_id, payment_id, signature } = req.body;
+        const studentId = req.studentId; // Get studentId from auth middleware
+        console.log("requesting for verify payment for studentId:"+studentId)
+        console.log(`he had pay ${amount} by payment method:{paymentMethod} then only generate payment id`)
         if (!order_id || !payment_id || !signature) {
-            return res.status(400).json({ message: "Invalid request" });
+            return res.status(400).json({ message: "Invalid request. Missing required fields." });
         }
+
+        console.log(`🟢 Verifying payment: Order ID: ${order_id}, Payment ID: ${payment_id}`);
 
         const generatedSignature = crypto.createHmac("sha256", process.env.RAZORPAY_SECRET)
             .update(order_id + "|" + payment_id)
@@ -59,6 +69,7 @@ exports.verifyPaymentController = async (req, res) => {
             return res.status(400).json({ message: "Payment verification failed" });
         }
 
+        // Update Transaction Status
         const transaction = await Transaction.findOneAndUpdate(
             { orderId: order_id },
             { transactionId: payment_id, status: "success", updatedAt: Date.now() },
@@ -66,12 +77,13 @@ exports.verifyPaymentController = async (req, res) => {
         );
 
         if (transaction) {
+            console.log(`✅ Payment verified! Reward points added: ${transaction.rewardPoints}`);
             await Reward.findOneAndUpdate(
                 { student: studentId },
                 {
                     $push: {
                         pointsChanged: transaction.rewardPoints,
-                        reasons: "Added reward points via payment",
+                        reasons: `Added reward points via payment transaction id: ${payment_id}`,
                         timestamps: Date.now(),
                     },
                 },
@@ -81,6 +93,7 @@ exports.verifyPaymentController = async (req, res) => {
 
         res.json({ success: true, message: "Payment successful, rewards added!" });
     } catch (error) {
+        console.error("❌ Error verifying payment:", error.message);
         res.status(500).json({ error: "Error verifying payment", details: error.message });
     }
 };
