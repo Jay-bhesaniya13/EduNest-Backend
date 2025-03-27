@@ -5,7 +5,8 @@ const {
   getModuleById, 
   updateModule, 
   deleteModule ,
-  teacherModule
+  teacherModule,
+  getTopRatedModules,
 } = require("../controllers/moduleController");
 const {authenticateTeacher, authenticateStudent}=require("../controllers/authController")
 
@@ -29,4 +30,7 @@ router.delete("/:moduleId",authenticateTeacher, deleteModule);
 // teacher specific all modules
 router.get("/teacherModule",authenticateTeacher, teacherModule);
 
+
+// Get top-rated modules
+router.get("/top-rated", getTopRatedModules)
 module.exports = router;

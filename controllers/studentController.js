@@ -26,39 +26,33 @@ const transporter = nodemailer.createTransport({
 
 exports.registerStudent = async (req, res) => {
   try {
-    const { name, email, password, contactNumber, profilepicURL, about, skills, city } = req.body;
+    const { name, email, password, contactNumber,  about, skills, city } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: "Name, Email, and Password are required." });
     }
-
-    const existStudent = await Student.findOne({ email });
+     const existStudent = await Student.findOne({ email });
     if (existStudent) {
       return res.status(400).json({ message: "Student already exists. Please login." });
     }
-
-    // 🔹 Hash the password before saving
+     // 🔹 Hash the password before saving
     const hashedPassword = await bcrypt.hash(password, 10);
 
-
-    if (name) {
+     
       const initials = name.slice(0, 2).toUpperCase(); // First two letters
-      profilepicURL = `https://api.dicebear.com/8.x/initials/svg?seed=${initials}`;
-      name;
-    }
-  
+    const profilepicURL = `https://api.dicebear.com/8.x/initials/svg?seed=${initials}`;
+     
+   
     // 🔹 Generate OTP
     const otp = generateOTP();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // OTP expires in 10 minutes
-
-    // 🔹 Save OTP in a temporary collection
+     // 🔹 Save OTP in a temporary collection
     await TemporaryOTP.findOneAndUpdate(
       { email },
       { email, name, hashedPassword,profilepicURL, contactNumber, about, skills, city, otp, otpExpiry },
       { upsert: true, new: true }
     );
-
-    // 🔹 Send OTP via Email
+     // 🔹 Send OTP via Email
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
@@ -74,12 +68,11 @@ exports.registerStudent = async (req, res) => {
               <p style="font-size: 12px; text-align: center; color: #7f8c8d;">If you didn't request this, please ignore this email.</p>
             </div>`
     };
-
-    await transporter.sendMail(mailOptions);
-
-    return res.status(200).json({ message: "OTP sent to your email. Verify to complete registration." });
+     await transporter.sendMail(mailOptions);
+     return res.status(200).json({ message: "OTP sent to your email. Verify to complete registration." });
 
   } catch (error) {
+    console.log("errorrrr:"+error)
     return res.status(500).json({ error: error.message });
   }
 };

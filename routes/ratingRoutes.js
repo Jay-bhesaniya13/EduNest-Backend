@@ -1,23 +1,29 @@
-const express = require("express");
-const { 
-  addOrUpdateRating, 
-  getCourseRatings, 
-  getStudentRating, 
-  deleteRating 
-} = require("../controllers/ratingController");
+const express = require("express")
+const {
+  rateModule,
+  getModuleRatings,
+  getStudentRatings,
+  deleteRating,
+  canRateModule,
+} = require("../controllers/ratingController")
+const { authenticateStudent } = require("../controllers/authController")
 
-const router = express.Router();
+const router = express.Router()
 
-// Add or Update Rating (Student ID should be in the body)
-router.post("/rate", addOrUpdateRating);
+// Rate a module
+router.post("/rate", authenticateStudent, rateModule)
 
-// Get all ratings for a course
-router.get("/course/:courseId", getCourseRatings);
+// Get all ratings for a module
+router.get("/module/:moduleId", getModuleRatings)
 
-// Get a specific student's rating for a course (Student ID in query/body)
-router.get("/course/:courseId/my-rating/:studentId", getStudentRating);
+// Get all ratings given by a student
+router.get("/student", authenticateStudent, getStudentRatings)
 
-// Delete Rating (Student ID should be in the body to verify ownership)
-router.delete("/:ratingId", deleteRating);
+// Delete a rating
+router.delete("/:ratingId", authenticateStudent, deleteRating)
 
-module.exports = router;
+// Check if a student can rate a module
+router.get("/can-rate/:moduleId/:courseId", authenticateStudent, canRateModule)
+
+module.exports = router
+

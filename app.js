@@ -20,6 +20,7 @@ const attemptedQuizRoutes=require("./routes/attemptedQuizRoutes");
 const quizAttemptRoutes=require("./routes/quizAttemptRoutes");
 const leaderboardRoutes=require("./routes/leaderBoardRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
+const ratingRoutes = require("./routes/ratingRoutes")
 
 const clientRoutes=require("./routes/clientroutes")
 
@@ -66,6 +67,7 @@ app.use("/api/leaderboard",leaderboardRoutes);//for leaderboard
 app.use("/api/attemptedquiz",attemptedQuizRoutes);//for attempted quiz
 app.use("/api/quizattempt",quizAttemptRoutes);//for submit quiz
 app.use("/api/payment", paymentRoutes);  // For payment routes
+app.use("/api/ratings", ratingRoutes)
 
 
 // Default route for handling undefined routes

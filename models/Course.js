@@ -24,9 +24,9 @@ const courseSchema = new mongoose.Schema({
     enum: ["beginner", "intermediate", "advanced"], 
     required: true 
   },
-  totalRating: { type: Number },
-  ratedStudent: { type: Number },
-  avgRating: { type: Number },
+  totalRating: { type: Number, default: 0 },
+  ratedStudent: { type: Number, default: 0 },
+  avgRating: { type: Number, default: 0 },
 
   // Sales Tracking Fields
   totalSell: { type: Number, default: 0 },
@@ -35,10 +35,9 @@ const courseSchema = new mongoose.Schema({
   lastYearSell: { type: Number, default: 0 },
   
   totalSellPrice: { type: Number, default: 0 },
-lastMonthSellPrice: { type: Number, default: 0 },
-last6MonthSellPrice: { type: Number, default: 0 },
-lastYearSellPrice: { type: Number, default: 0 },
-
+  lastMonthSellPrice: { type: Number, default: 0 },
+  last6MonthSellPrice: { type: Number, default: 0 },
+  lastYearSellPrice: { type: Number, default: 0 },
 });
 
 // Pre-save hook to calculate final course price
