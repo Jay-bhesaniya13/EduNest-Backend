@@ -13,6 +13,7 @@ const razorpay = new Razorpay({
 // ✅ Create Razorpay Order
 exports.createOrderController = async (req, res) => {
     try {
+        console.log("create order controller entred")
         const { amount, paymentMethod } = req.body;
         const studentId = req.studentId; // Get studentId from auth middleware
       console.log("requesting for create order for studentId:"+studentId)
@@ -20,6 +21,12 @@ exports.createOrderController = async (req, res) => {
         if (!studentId || !amount) {
             return res.status(400).json({ message: "Invalid request. Student ID or amount missing." });
         }
+
+          // ✅ Payment method validation
+          const validPaymentMethods = ["credit_card", "debit_card", "upi", "net_banking"];
+          if (!validPaymentMethods.includes(paymentMethod)) {
+              return res.status(400).json({ message: "Invalid payment method. Choose from: credit_card, debit_card, upi, net_banking" });
+          }
 
         console.log(`🟢 Creating order: Amount: ₹${amount}, Payment Method: ${paymentMethod}`);
 
@@ -40,7 +47,9 @@ exports.createOrderController = async (req, res) => {
         });
 
         await transaction.save();
+        console.log("create order controller exited")
         res.json({ success: true, order });
+        
     } catch (error) {
         console.error("❌ Error creating order:", error.message);
         res.status(500).json({ error: "Error creating order", details: error.message });
@@ -50,6 +59,7 @@ exports.createOrderController = async (req, res) => {
 // ✅ Verify Razorpay Payment
 exports.verifyPaymentController = async (req, res) => {
     try {
+        console.log("verify order controller entred")
         const { order_id, payment_id, signature } = req.body;
         const studentId = req.studentId; // Get studentId from auth middleware
         console.log("requesting for verify payment for studentId:"+studentId)
@@ -90,6 +100,8 @@ exports.verifyPaymentController = async (req, res) => {
                 { upsert: true, new: true }
             );
         }
+        console.log("verify order controller exited")
+
 
         res.json({ success: true, message: "Payment successful, rewards added!" });
     } catch (error) {
