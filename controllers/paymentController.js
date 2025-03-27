@@ -57,53 +57,66 @@ exports.createOrderController = async (req, res) => {
 };
 
 // ✅ Verify Razorpay Payment
+// ✅ Verify Razorpay Payment
 exports.verifyPaymentController = async (req, res) => {
     try {
-        console.log("verify order controller entred")
+        console.log("🔍 verifyPaymentController entered");
+
         const { order_id, payment_id, signature } = req.body;
-        const studentId = req.studentId; // Get studentId from auth middleware
-        console.log("requesting for verify payment for studentId:"+studentId)
-        console.log(`he had pay ${amount} by payment method:{paymentMethod} then only generate payment id`)
+        const studentId = req.studentId;
+
+        console.log("🔍 Verifying payment for Student ID:", studentId);
+        console.log(`🔹 Received Order ID: ${order_id}, Payment ID: ${payment_id}, Signature: ${signature}`);
+
         if (!order_id || !payment_id || !signature) {
+            console.error("❌ Missing required fields:", req.body);
             return res.status(400).json({ message: "Invalid request. Missing required fields." });
         }
-
-        console.log(`🟢 Verifying payment: Order ID: ${order_id}, Payment ID: ${payment_id}`);
 
         const generatedSignature = crypto.createHmac("sha256", process.env.RAZORPAY_SECRET)
             .update(order_id + "|" + payment_id)
             .digest("hex");
 
+        console.log("🔍 Expected Signature:", generatedSignature);
+        console.log("🔍 Received Signature:", signature);
+
         if (generatedSignature !== signature) {
+            console.error("❌ Signature Mismatch! Payment verification failed.");
             await Transaction.findOneAndUpdate({ orderId: order_id }, { status: "failed" });
-            return res.status(400).json({ message: "Payment verification failed" });
+            return res.status(400).json({ message: "Payment verification failed. Signature mismatch." });
         }
 
-        // Update Transaction Status
+        // ✅ Update Transaction Status
         const transaction = await Transaction.findOneAndUpdate(
             { orderId: order_id },
-            { transactionId: payment_id, status: "success", updatedAt: Date.now() },
+            { transactionId: payment_id, status: "success" },
             { new: true }
         );
 
-        if (transaction) {
-            console.log(`✅ Payment verified! Reward points added: ${transaction.rewardPoints}`);
-            await Reward.findOneAndUpdate(
-                { student: studentId },
-                {
-                    $push: {
-                        pointsChanged: transaction.rewardPoints,
-                        reasons: `Added reward points via payment transaction id: ${payment_id}`,
-                        timestamps: Date.now(),
-                    },
-                },
-                { upsert: true, new: true }
-            );
+        if (!transaction) {
+            console.error("❌ Transaction record not found for Order ID:", order_id);
+            return res.status(404).json({ message: "Transaction not found" });
         }
-        console.log("verify order controller exited")
 
+        console.log(`✅ Payment verified! Reward points to add: ${transaction.rewardPoints}`);
+
+        // ✅ Add Reward Points
+        await Reward.findOneAndUpdate(
+            { student: studentId },
+            { 
+                $inc: { pointsChanged: transaction.rewardPoints },
+                $push: { 
+                    reasons: `Added via payment: ${payment_id}`, 
+                    timestamps: Date.now()
+                } 
+            },
+            { upsert: true, new: true }
+        );
+
+        console.log(`✅ Reward points (${transaction.rewardPoints}) added for Student ID: ${studentId}`);
 
         res.json({ success: true, message: "Payment successful, rewards added!" });
+
     } catch (error) {
         console.error("❌ Error verifying payment:", error.message);
         res.status(500).json({ error: "Error verifying payment", details: error.message });
