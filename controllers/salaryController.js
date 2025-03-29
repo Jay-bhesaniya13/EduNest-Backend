@@ -35,7 +35,7 @@ exports.getTeachersBalance = async (req, res) => {
 exports.paySalary = async (req, res) => {
   try {
     const { selectedTeachers } = req.body;
-    const adminId = req.adminId; // Extract adminId from auth middleware
+    const adminId = req.admin.id;  
 
     if (!adminId) {
       return res.status(403).json({ message: "Unauthorized access" });
