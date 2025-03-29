@@ -27,6 +27,8 @@ const transporter = nodemailer.createTransport({
 exports.registerStudent = async (req, res) => {
   try {
     const { name, email, password, contactNumber,  about, skills, city } = req.body;
+    console.log("Register request entered with\n")
+    console.log(` { name ${name}, email ${email}, password ${password}, contactNumber,  about, skills, city }  `)
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: "Name, Email, and Password are required." });

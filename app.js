@@ -23,7 +23,7 @@ const paymentRoutes = require("./routes/paymentRoutes");
 const ratingRoutes = require("./routes/ratingRoutes")
 
 const clientRoutes=require("./routes/clientroutes")
-
+const salarypaymentRoutes=require("./routes/salaryRoutes")
  
 const app = express();
 const Mongo_URI=process.env.MONGO_URI;
@@ -68,6 +68,7 @@ app.use("/api/attemptedquiz",attemptedQuizRoutes);//for attempted quiz
 app.use("/api/quizattempt",quizAttemptRoutes);//for submit quiz
 app.use("/api/payment", paymentRoutes);  // For payment routes
 app.use("/api/ratings", ratingRoutes)
+app.use("/api/salary-payment",salarypaymentRoutes)
 
 
 // Default route for handling undefined routes

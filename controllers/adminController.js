@@ -40,11 +40,13 @@ exports.createAdmin = async (req, res) => {
 // ✅ Login Admin (Returns JWT Token)
 exports.loginAdmin = async (req, res) => {
   try {
-    const { email, password } = req.body;
 
+    console.log("Login enterred")
+    const { email, password } = req.body;
+   console.log({email,password})
     const admin = await Admin.findOne({ email });
     if (!admin) return res.status(400).json({ message: "Invalid email or password" });
-
+ console.log("admin found")
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid email or password" });
 
@@ -53,6 +55,7 @@ exports.loginAdmin = async (req, res) => {
     console.log("generated token for admin:"+token)
     res.status(200).json({ message: "Login successful", token, admin });
   } catch (error) {
+    console.log("Admin login error:"+ error.message)
     res.status(500).json({ error: error.message });
   }
 };

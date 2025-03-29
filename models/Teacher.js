@@ -11,6 +11,8 @@ const teacherSchema = new mongoose.Schema({
   about: { type: String },
   areas_of_expertise: [{ type: String }],
   city: { type: String },
+  accountNo: { type: String, required: true },
+  ifscCode: { type: String, required: true },
 
   enrolledStudents: [{ type: mongoose.Schema.Types.ObjectId, ref: "Student" }], // Reference to Student model
   
