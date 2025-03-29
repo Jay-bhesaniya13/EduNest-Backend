@@ -35,13 +35,13 @@ exports.getTeachersBalance = async (req, res) => {
 exports.paySalary = async (req, res) => {
   try {
     const { selectedTeachers } = req.body;
-    const adminId = req.admin.id; // Extract adminId from auth middleware
+    const adminId = req.adminId; // Extract adminId from auth middleware
 
     if (!adminId) {
       return res.status(403).json({ message: "Unauthorized access" });
     }
 
-    // Fetch teachers based on admin's selection
+    // Fetch teachers based on selection
     const teachers = selectedTeachers?.length
       ? await Teacher.find({ _id: { $in: selectedTeachers }, balance: { $gt: 0 } })
       : await Teacher.find({ balance: { $gt: 0 } });
@@ -50,16 +50,64 @@ exports.paySalary = async (req, res) => {
       return res.status(400).json({ message: "No teachers found with pending balance." });
     }
 
-    const totalAmount = teachers.reduce((sum, teacher) => sum + teacher.balance, 0);
+    let eligibleTeachers = [];
+    let ineligibleTeachers = [];
 
-    // Create Razorpay Payment Order
+    for (const teacher of teachers) {
+      if (teacher.accountNo && teacher.ifscCode) {
+        eligibleTeachers.push(teacher);
+      } else {
+        ineligibleTeachers.push(teacher);
+        
+        // ❌ Send Email Notification to Update Bank Details
+        const emailContent = `
+          <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+            <h2 style="color: #D9534F;">Salary Payment Failed</h2>
+            <p>Dear <b>${teacher.name}</b>,</p>
+            <p>We attempted to process your salary payment, but unfortunately, we couldn't proceed because your bank account details are missing.</p>
+            <p>Please update your account number and IFSC code in your profile to receive your salary.</p>
+            <p>If you have any questions, feel free to contact the admin.</p>
+            <p>Best Regards,</p>
+            <p><b>EduNest Team</b></p>
+          </div>
+        `;
+
+        const mailOptions = {
+          from: process.env.EMAIL_USER,
+          to: teacher.email,
+          subject: "Salary Payment Failed - Update Bank Details",
+          html: emailContent,
+        };
+
+        try {
+          await transporter.sendMail(mailOptions);
+          console.log(`📩 Email sent to ${teacher.email}: Update your bank details`);
+        } catch (emailError) {
+          console.error(`❌ Failed to send email to ${teacher.email}:`, emailError);
+        }
+      }
+    }
+
+    if (!eligibleTeachers.length) {
+      return res.status(400).json({ message: "No eligible teachers found with valid bank details." });
+    }
+
+    const totalAmount = eligibleTeachers.reduce((sum, teacher) => sum + teacher.balance, 0);
+
+    // ✅ Create Razorpay Payment Order for Eligible Teachers
     const order = await razorpay.orders.create({
       amount: totalAmount * 100, // Convert to paisa
       currency: "INR",
       receipt: `salary_${Date.now()}`,
     });
 
-    res.json({ success: true, order, teachers });
+    res.json({
+      success: true,
+      message: "Salary payment initiated. Emails sent to teachers with missing bank details.",
+      order,
+      eligibleTeachers,
+      ineligibleTeachers,
+    });
 
   } catch (error) {
     console.error("❌ Error creating salary payment order:", error.message);
