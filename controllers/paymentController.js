@@ -106,13 +106,14 @@ exports.verifyPaymentController = async (req, res) => {
             .update(order_id + "|" + payment_id)
             .digest("hex");
 
-        if (generatedSignature !== signature) {
+        if (generatedSignature != signature) {
             await Transaction.findOneAndUpdate({ orderId: order_id }, { status: "failed" });
             return res.status(400).json({ message: "Payment verification failed. Signature mismatch." });
         }
 
         // ✅ Get Actual Payment Method from Razorpay
         const mappedMethod = mapRazorpayMethod(method);
+        console.log("mappedMethod(mapRazorpayMethod)= "+mappedMethod)
         if (!mappedMethod) {
             return res.status(400).json({ message: "Invalid payment method detected!" });
         }
