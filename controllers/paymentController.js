@@ -94,10 +94,10 @@ const sendPaymentSuccessEmail = async (studentEmail, studentName, amount, reward
 // ✅ Verify Razorpay Payment & Store Actual Payment Method
 exports.verifyPaymentController = async (req, res) => {
     try {
-        const { order_id, payment_id, signature, method } = req.body;
+        const { order_id, payment_id, signature } = req.body;
         const studentId = req.studentId;
 
-        if (!order_id || !payment_id || !signature || !method) {
+        if (!order_id || !payment_id || !signature) {
             return res.status(400).json({ message: "Invalid request. Missing required fields." });
         }
 
@@ -106,22 +106,26 @@ exports.verifyPaymentController = async (req, res) => {
             .update(order_id + "|" + payment_id)
             .digest("hex");
 
-        if (generatedSignature != signature) {
+        if (generatedSignature !== signature) {
             await Transaction.findOneAndUpdate({ orderId: order_id }, { status: "failed" });
             return res.status(400).json({ message: "Payment verification failed. Signature mismatch." });
         }
 
-        // ✅ Get Actual Payment Method from Razorpay
-        const mappedMethod = mapRazorpayMethod(method);
-        console.log("mappedMethod(mapRazorpayMethod)= "+mappedMethod)
-        if (!mappedMethod) {
-            return res.status(400).json({ message: "Invalid payment method detected!" });
+        // ✅ Fetch actual payment details from Razorpay
+        const payment = await razorpay.payments.fetch(payment_id);
+        const actualMethod = mapRazorpayMethod(payment.method);
+        if (!actualMethod) {
+            return res.status(400).json({ message: "Invalid payment method detected from Razorpay!" });
         }
 
-        // ✅ Update Transaction with Actual Payment Method
+        // ✅ Update Transaction
         const transaction = await Transaction.findOneAndUpdate(
             { orderId: order_id },
-            { transactionId: payment_id, status: "success", paymentMethod: mappedMethod },
+            {
+                transactionId: payment_id,
+                status: "success",
+                paymentMethod: actualMethod
+            },
             { new: true }
         );
 
@@ -134,25 +138,24 @@ exports.verifyPaymentController = async (req, res) => {
         // ✅ Add Reward Points
         await Reward.findOneAndUpdate(
             { student: studentId },
-            { 
-                $push: { 
+            {
+                $push: {
                     pointsChanged: transaction.rewardPoints,
                     reasons: `Added via payment: ${payment_id}`,
-                    timestamps: [Date.now()]
-                } 
+                    timestamps: Date.now() // ✅ fixed
+                }
             },
             { upsert: true, new: true }
         );
 
-        // ✅ Update Total Reward Points in Student Model
+        // ✅ Update Total Reward Points in Student
         const reward = await Reward.findOne({ student: studentId });
-
         if (reward) {
-            const totalPoints = reward.pointsChanged.reduce((acc, points) => acc + points, 0);
+            const totalPoints = reward.pointsChanged.reduce((acc, pts) => acc + pts, 0);
             await Student.findByIdAndUpdate(studentId, { rewardPoints: totalPoints });
         }
 
-        // ✅ Fetch Student Details for Email
+        // ✅ Send Confirmation Email
         const student = await Student.findById(studentId);
         if (student) {
             sendPaymentSuccessEmail(student.email, student.name, transaction.amount, transaction.rewardPoints);
