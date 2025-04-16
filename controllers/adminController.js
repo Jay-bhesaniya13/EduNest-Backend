@@ -37,28 +37,59 @@ exports.createAdmin = async (req, res) => {
   }
 };
 
+
 // ✅ Login Admin (Returns JWT Token)
 exports.loginAdmin = async (req, res) => {
   try {
+    console.log("Login entered");
 
-    console.log("Login enterred")
     const { email, password } = req.body;
-   console.log({email,password})
+    console.log({ email, password });
+
     const admin = await Admin.findOne({ email });
-    if (!admin) return res.status(400).json({ message: "Invalid email or password" });
- console.log("admin found")
-    const isMatch = await bcrypt.compare(password, admin.password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid email or password" });
+    if (!admin) {
+      console.log("Admin not found for email:", email);
+      return res.status(400).json({ message: "Invalid email or password" });
+    }
+
+    console.log("Admin found");
+    console.log("Provided password:", password);
+    console.log("Stored password:", admin.password);
+
+    let isMatch = false;
+
+    try {
+      isMatch = await bcrypt.compare(password, admin.password);
+      console.log("bcrypt.compare result:", isMatch);
+
+      // Fallback to plain string comparison if bcrypt doesn't match
+      if (!isMatch) {
+        console.warn("bcrypt matched false, trying plain string comparison");
+        isMatch = password === admin.password;
+        console.log("Fallback string compare result:", isMatch);
+      }
+
+    } catch (err) {
+      console.error("bcrypt.compare threw an error:", err);
+      return res.status(500).json({ message: "Server error during password comparison" });
+    }
+
+    if (!isMatch) {
+      console.log("Password comparison failed: Invalid email or password");
+      return res.status(400).json({ message: "Invalid email or password" });
+    }
 
     // Generate JWT
     const token = jwt.sign({ id: admin._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
-    console.log("generated token for admin:"+token)
+    console.log("Generated token for admin:", token);
+
     res.status(200).json({ message: "Login successful", token, admin });
   } catch (error) {
-    console.log("Admin login error:"+ error.message)
-    res.status(500).json({ error: error.message });
+    console.error("Admin login error:", error.message);
+    res.status(500).json({ error: "Server error during login" });
   }
 };
+
 
 
 // ✅ Get all Admins (Protected Route)
@@ -95,10 +126,7 @@ exports.updateAdmin = async (req, res) => {
     if (req.body.profilepicURL) req.admin.profilepicURL = req.body.profilepicURL;
 
     // If updating password, hash it before saving
-    if (req.body.password) {
-      const salt = await bcrypt.genSalt(10);
-      req.admin.password = await bcrypt.hash(req.body.password, salt);
-    }
+    if (req.body.password) req.admin.password = req.body.password;
 
     await req.admin.save(); // Save the updated admin
 
