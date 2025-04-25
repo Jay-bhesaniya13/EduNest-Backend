@@ -27,6 +27,9 @@ exports.createOrderController = async (req, res) => {
         const studentId = req.studentId;
 
         if (!studentId || !amount) {
+            console.log("in create order: ")
+            console.log("amount:"+amount)
+            console.log("studentId:"+studentId)
             return res.status(400).json({ message: "Invalid request. Student ID or amount missing." });
         }
 
