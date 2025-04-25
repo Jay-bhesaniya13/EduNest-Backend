@@ -31,7 +31,7 @@ exports.getQuizById = async (req, res) => {
         student.attemptedQuizzes = student.attemptedQuizzes || []; // Ensure it's an array
 
         const hasAttempted = student.attemptedQuizzes.some(attempt => 
-            attempt.quizId.toString() === quizId
+            attempt.quizId== quizId
         );
 
         if (hasAttempted) {
@@ -162,7 +162,7 @@ exports.submitQuizAttempt = async (req, res) => {
         if (!student) throw new Error("Student not found.");
 
         // ❌ Prevent multiple attempts (Student can only attempt once)
-        const hasAttempted = student.attemptedQuizzes.some(q => q.quizId.toString() === quizId);
+        const hasAttempted = student.attemptedQuizzes.some(q => q.quizId== quizId);
         if (hasAttempted) throw new Error("You have already attempted this quiz.");
 
         // ✅ Calculate `timeTaken`
@@ -181,7 +181,7 @@ exports.submitQuizAttempt = async (req, res) => {
         let submittedAnswers = [];
 
         answers.forEach(answer => {
-            const question = questions.find(q => q._id.toString() === answer.questionId);
+            const question = questions.find(q => q._id== answer.questionId);
             if (question) {
                 maxMarks += question.marks;
                 if (question.correctAnswerIndex === answer.selectedAnswerIndex) {
