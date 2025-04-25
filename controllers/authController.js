@@ -14,6 +14,7 @@ exports.authenticateStudent = (req, res, next) => {
    console.log("auth:"+req.studentId )
     next();
   } catch (error) {
+    console.log()
     res.status(400).json({ error: "Invalid token from student Auth" ,message:error});
   }
 };

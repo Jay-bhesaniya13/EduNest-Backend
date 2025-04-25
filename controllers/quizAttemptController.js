@@ -48,7 +48,7 @@ exports.getQuizById = async (req, res) => {
 
         // ✅ Extract relevant student data
         const attemptedStudents = students.map(student => {
-            const attempt = student.attemptedQuizzes.find(a => a.quizId.toString() === quizId);
+            const attempt = student.attemptedQuizzes.find(a => a.quizId == quizId);
             return {
                 studentId: student._id,
                 name: student.name,
