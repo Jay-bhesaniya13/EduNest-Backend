@@ -12,7 +12,9 @@ const {
 
   activateStudent, deactivateStudent, getAllStudents,
 
-  getAllCourses
+  getAllCourses ,
+  
+  leaderboardCreditReward
 } = require("../controllers/adminController");
 const { authenticateAdmin } = require("../controllers/authController");
 // const { getAllTeachers } = require("../controllers/teacherController");
@@ -50,5 +52,9 @@ router.get("/student", getAllStudents);
 
 // Route to get all courses
 router.get("/courses", authenticateAdmin, getAllCourses);
+
+
+// route to credit points to topper of leaderboard
+router.get("/quiz/leaderboard/credit-reward/:quizId",authenticateAdmin,leaderboardCreditReward);
 
 module.exports = router;

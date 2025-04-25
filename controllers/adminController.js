@@ -6,6 +6,11 @@ const Student = require("../models/Student");
 const Teacher = require("../models/Teacher");
 const Course = require("../models/Course");
 const Enrollment = require("../models/Enrollment");
+const Quiz = require('../models/Quiz'); 
+const Leaderboard = require('../models/LeaderBoard');
+const sendMail = require('../utils/sendEmail');  
+
+
 const mongoose = require("mongoose");
 
 // ✅ Register (Create Admin with JWT)
@@ -454,5 +459,95 @@ exports.getAllCourses = async (req, res) => {
   } catch (error) {
     console.error("Error fetching courses:", error);
     res.status(500).json({ success: false, message: "Internal server error." });
+  }
+};
+
+
+// credit points to topper of leaderboard
+exports.leaderboardCreditReward = async (req, res) => {
+  try {
+    const { quizId } = req.params;
+
+    // Step 1: Get leaderboard reward percentages from env
+    const rewardPercents = process.env.LEADERBOARD_REWARD_PERCENTAGE
+      ? process.env.LEADERBOARD_REWARD_PERCENTAGE.split(',').map(Number)
+      : [];
+
+    if (rewardPercents.length === 0) {
+      return res.status(400).json({ success: false, message: "Leaderboard reward percentages not configured." });
+    }
+
+    // Step 2: Fetch quiz to get rewardPoints
+    const quiz = await Quiz.findById(quizId);
+    if (!quiz) {
+      return res.status(404).json({ success: false, message: "Quiz not found" });
+    }
+
+    if (quiz.rewardPointsCredited) {
+      return res.status(400).json({ success: false, message: "Rewards already credited for this quiz" });
+    }
+
+    // Step 3: Fetch top N students from leaderboard for that quiz
+    const topStudents = await Leaderboard.findOne({ quizId })
+      .select('topStudents') // Select only the topStudents array
+      .populate('topStudents.studentId') // Populate studentId within the topStudents array
+      .sort({ "topStudents.marks": -1 }) // Sort by marks descending
+      .limit(rewardPercents.length);
+
+    if (!topStudents || topStudents.topStudents.length === 0) {
+      return res.status(404).json({ success: false, message: "No students found for leaderboard" });
+    }
+
+    const rewardedStudents = [];
+
+    // Iterate through top N students
+    for (let i = 0; i < topStudents.topStudents.length; i++) {
+      const entry = topStudents.topStudents[i];
+      const percentage = rewardPercents[i];
+      const reward = Math.round((quiz.rewardPoints * percentage) / 100);
+
+      const student = entry.studentId; // Now populated, no need to query again
+      if (!student) continue;
+
+      student.rewardPoints += reward;
+      await student.save();
+
+      rewardedStudents.push({
+        rank: i + 1,
+        studentId: student._id,
+        name: student.name,
+        rewardGiven: reward,
+      });
+
+      // Send styled reward email
+      const subject = `🏆 Congrats! You ranked ${i + 1} in "${quiz.title}"`;
+      const html = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; border-radius: 10px; background-color: #f5f5f5;">
+          <h2 style="color: #2e7d32;">🎉 Congratulations ${student.name}!</h2>
+          <p>You secured <strong>Rank ${i + 1}</strong> in the quiz: <strong>${quiz.title}</strong>.</p>
+          <p>You have been awarded <span style="color: #1976d2; font-size: 18px;"><strong>${reward} reward points</strong></span>!</p>
+          <br/>
+          <p style="font-size: 14px;">Keep learning and aiming higher! 🚀</p>
+          <hr style="margin-top: 20px;" />
+          <p style="font-size: 12px; color: #666;">This is an automated email from EduNest platform.</p>
+        </div>
+      `;
+
+      await sendMail(student.email, subject, html);
+    }
+
+    // Step 4: Mark quiz as credited
+    quiz.rewardPointsCredited = true;
+    await quiz.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Leaderboard rewards credited and emails sent successfully",
+      rewardedStudents,
+    });
+
+  } catch (error) {
+    console.error("Leaderboard reward error:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };

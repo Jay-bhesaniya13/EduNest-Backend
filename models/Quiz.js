@@ -14,7 +14,8 @@ const quizSchema = new mongoose.Schema({
     startAt: { type: Date, required: true }, // Date and Time
     rewardPoints: { type: Number, required: true },
     attempts:{type:Number,default: 0},
-    leaderboard: { type: mongoose.Schema.Types.ObjectId, ref: "Leaderboard" } // Reference to the leaderboard
+    leaderboard: { type: mongoose.Schema.Types.ObjectId, ref: "Leaderboard" }, // Reference to the leaderboard
+    rewardPointsCredited:{type:Boolean,default:false}
 });
 
 
