@@ -58,6 +58,24 @@ exports.getLeaderboard = async (req, res) => {
 
 
 
+// All available leaderboard quiz(topic,startAt ,id)
+exports.getAvailableLeaderboardQuizList = async (req, res) => {
+    try {
+      const quizzes = await Quiz.find({}, "_id topic startAt").sort({ startAt: 1 }); // Only select _id , topic and startAt
+  
+      res.status(200).json({
+         quizzes
+      });
+    } catch (error) {
+      console.error("Error fetching quiz list:", error);
+      res.status(500).json({
+        success: false,
+        message: "Internal server error while fetching quiz list",
+      });
+    }
+  };
+
+
 // Update leaderboard when a student completes a quiz
 exports.updateLeaderboard = async (req, res) => {
     try {
@@ -108,3 +126,4 @@ exports.updateLeaderboard = async (req, res) => {
         res.status(500).json({ message: "Server error", error });
     }
 };
+
