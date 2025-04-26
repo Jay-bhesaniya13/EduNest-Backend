@@ -9,6 +9,9 @@ const tempTeacherSchema = new mongoose.Schema({
   about: { type: String },
   areas_of_expertise: [{ type: String }],
   city: { type: String },
+  accountNo: { type: String, required: false }, 
+  ifscCode: { type: String, required: false },
+
   otp: { type: Number, required: true },
   otpExpiresAt: { type: Date, required: true },
 }, { timestamps: true });

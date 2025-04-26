@@ -17,7 +17,7 @@ function otpGenerator() {
 // **2. Register Teacher (Temporary Storage)**
 exports.registerTeacher = async (req, res) => {
   try {
-    const { name, email, password, contactNumber, profilepicURL, about, areas_of_expertise, city } = req.body;
+    const { name, email, password, contactNumber, profilepicURL, about, areas_of_expertise, city ,accountNo ,ifscCode} = req.body;
 
     if (!name || !email || !password || !profilepicURL) {
       return res.status(400).json({ error: "Name, Email, Password, and Profile Picture are required." });
@@ -90,6 +90,8 @@ exports.verifyTeacherOTP = async (req, res) => {
       about: tempTeacher.about,
       areas_of_expertise: tempTeacher.areas_of_expertise,
       city: tempTeacher.city,
+      accountNo:tempTeacher.accountNo ,
+      ifscCode:tempTeacher.ifscCode ,
       join_date: new Date()
     });
 
@@ -215,7 +217,7 @@ exports.updateTeacherProfile = async (req, res) => {
   try {
     const teacherId = req.teacher.id;
     // Define allowed fields
-    const allowedFields = ["name", "contactNumber", "profilepicURL", "about", "areas_of_expertise", "city"];
+    const allowedFields = ["name", "contactNumber", "profilepicURL", "about", "areas_of_expertise", "city", "accountNo" ,"ifscCode"];
 
     // Filter request body to only include allowed fields
     const updatedData = {};
