@@ -13,9 +13,9 @@ const teacherSchema = new mongoose.Schema({
   city: { type: String },
   accountNo: { type: String, required: false }, // Dummy 12-digit account number ( "123456789012" )
   ifscCode: { type: String, required: false },  // Razorpay test IFSC ( "RAZOR0000001" )
-  
+
   enrolledStudents: [{ type: mongoose.Schema.Types.ObjectId, ref: "Student" }], // Reference to Student model
-  
+
   balance: { type: Number, default: 0 },
   totalEarning: { type: Number, default: 0 },
   averageRating: { type: Number, default: 0 }, // Added default value
@@ -30,9 +30,12 @@ const teacherSchema = new mongoose.Schema({
 // image url
 teacherSchema.post("save", async function (doc, next) {
   if (doc.name && !doc.profilepicURL) {
-      const initials = doc.name.slice(0, 2).toUpperCase(); // First two letters
-      doc.profilepicURL = `https://api.dicebear.com/8.x/initials/svg?seed=${initials}`;
-      await doc.save(); // Save the updated profile picture URL
+    const initials = doc.name
+      .split(' ') // Split the name into words
+      .map(word => word.charAt(0).toUpperCase()) // Get the first letter of each word
+      .join(''); // Join the letters together
+    doc.profilepicURL = `https://api.dicebear.com/8.x/initials/svg?seed=${initials}`;
+    await doc.save(); // Save the updated profile picture URL
   }
   next();
 });
@@ -40,7 +43,7 @@ teacherSchema.post("save", async function (doc, next) {
 
 // Middleware to create a BalanceHistory entry when a new teacher is created
 teacherSchema.post("save", async function (doc, next) {
-    try {
+  try {
     await BalanceHistory.create({
       teacherId: doc._id,
       historyIncome: [],

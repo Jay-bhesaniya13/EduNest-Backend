@@ -6,7 +6,7 @@ const studentSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    contactNumber: { type: String }, 
+    contactNumber: { type: String },
     isVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     profilepicURL: { type: String },
@@ -25,13 +25,13 @@ const studentSchema = new mongoose.Schema({
     ],
 
     // 🔹 Reward System
-    rewardPoints: { 
-        type: Number, 
+    rewardPoints: {
+        type: Number,
         default: Number(REWARD_POINT_ON_ACCOUNT_CREATION)
     },
 
     // 🔹 OTP for Verification
-    otp: { type: String }, 
+    otp: { type: String },
     otpExpiry: { type: Date },
 
     // 🔹 Store Attempted Quizzes
@@ -94,7 +94,7 @@ studentSchema.statics.enrollModule = async function (studentId, courseId, module
     const moduleObjectId = new mongoose.Types.ObjectId(moduleId); // Ensure valid ObjectId
 
     if (courseEntry) {
-        const moduleSet = new Set(courseEntry.modules.map(m => m.toString())); 
+        const moduleSet = new Set(courseEntry.modules.map(m => m.toString()));
         if (moduleSet.has(moduleObjectId.toString())) {
             throw new Error("Module already enrolled in this course");
         }
@@ -111,7 +111,10 @@ studentSchema.statics.enrollModule = async function (studentId, courseId, module
 // 🔹 Automatically Generate Profile Picture Using Initials
 studentSchema.post("save", async function (doc, next) {
     if (doc.name && !doc.profilepicURL) {
-        const initials = doc.name.slice(0, 2).toUpperCase(); // First two letters
+        const initials = doc.name
+            .split(' ') // Split the name into words
+            .map(word => word.charAt(0).toUpperCase()) // Get the first letter of each word
+            .join(''); // Join the letters together
         doc.profilepicURL = `https://api.dicebear.com/8.x/initials/svg?seed=${initials}`;
         await doc.save(); // Save the updated profile picture URL
     }
