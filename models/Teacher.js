@@ -11,10 +11,9 @@ const teacherSchema = new mongoose.Schema({
   about: { type: String },
   areas_of_expertise: [{ type: String }],
   city: { type: String },
+  accountNo: { type: String, required: true }, // Dummy 12-digit account number ( "123456789012" )
+  ifscCode: { type: String, required: true },  // Razorpay test IFSC ( "RAZOR0000001" )
   
-  accountNo: { type: String, required: true },
-  ifscCode: { type: String, required: true },
-
   enrolledStudents: [{ type: mongoose.Schema.Types.ObjectId, ref: "Student" }], // Reference to Student model
   
   balance: { type: Number, default: 0 },

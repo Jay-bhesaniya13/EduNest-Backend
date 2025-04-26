@@ -161,11 +161,10 @@ exports.verifySalaryPayment = async (req, res) => {
         { upsert: true, new: true }
       );
 
-      // ✅ 2. Update Teacher's totalEarning
+      // ✅ Update Teacher's totalEarning and balance, then save
       teacher.totalEarning += paidAmount;
-
-      // Reset balance to 0
-      await Teacher.findByIdAndUpdate(teacherId, { balance: 0 });
+      teacher.balance = 0;
+      await teacher.save();
 
       // Store payment data
       paymentData.push({
