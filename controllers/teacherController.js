@@ -293,9 +293,7 @@ exports.getTeacherInfo = async (req, res) => {
   }
 };
 
-
-
-
+// get enrolled student list for teacher
 exports.getEnrolledStudents = async (req, res) => {
   try {
     const teacherId  = req.teacher._id;

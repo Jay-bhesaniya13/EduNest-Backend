@@ -269,6 +269,7 @@ exports.getTotalPendingSalary = async (req, res) => {
 
     // Format response with required fields
     const teachersData = teachersWithBalance.map(teacher => ({
+      _id:teacher._id,
       name: teacher.name,
       email: teacher.email,
       pendingSalary: teacher.balance
