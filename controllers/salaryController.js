@@ -35,7 +35,7 @@ exports.getTeachersBalance = async (req, res) => {
 exports.paySalary = async (req, res) => {
   try {
     const { selectedTeachers } = req.body;
-    const adminId = req.admin.id;  
+    const adminId = req.admin.id;
 
     if (!adminId) {
       return res.status(403).json({ message: "Unauthorized access" });
@@ -58,7 +58,7 @@ exports.paySalary = async (req, res) => {
         eligibleTeachers.push(teacher);
       } else {
         ineligibleTeachers.push(teacher);
-        
+
         // ❌ Send Email Notification to Update Bank Details
         const emailContent = `
           <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
@@ -149,9 +149,20 @@ exports.verifySalaryPayment = async (req, res) => {
       // Update BalanceHistory
       await BalanceHistory.findOneAndUpdate(
         { teacherId },
-        { $push: { historySalary: { salary: paidAmount, reason } } },
+        {
+          $push: {
+            historySalary: {
+              salary: paidAmount,
+              reason,
+              date: new Date(),  // ✅ Add current date manually
+            }
+          }
+        },
         { upsert: true, new: true }
       );
+
+      // ✅ 2. Update Teacher's totalEarning
+      teacher.totalEarning += paidAmount;
 
       // Reset balance to 0
       await Teacher.findByIdAndUpdate(teacherId, { balance: 0 });
@@ -204,7 +215,7 @@ exports.verifySalaryPayment = async (req, res) => {
       } catch (error) {
         console.error(`❌ Failed to send email to ${teacher.email}:`, error);
       }
-      
+
     }
 
     // Store in Admin Payment History
@@ -236,45 +247,45 @@ exports.getAdminPaymentHistory = async (req, res) => {
 
 // ✅ Get Total Pending Salary for All Teachers
 exports.getTotalPendingSalary = async (req, res) => {
-    try {
-        console.log("Fetching pending salaries...");
+  try {
+    console.log("Fetching pending salaries...");
 
-        // Fetch each teacher's balance along with their name and email
-        const teachersWithBalance = await Teacher.find({}, { name: 1, email: 1, balance: 1 });
+    // Fetch each teacher's balance along with their name and email
+    const teachersWithBalance = await Teacher.find({}, { name: 1, email: 1, balance: 1 });
 
-        // Log each teacher's pending balance
-        teachersWithBalance.forEach(teacher => {
-            console.log(`🔹 ${teacher.name} (Email: ${teacher.email}) has pending salary: ₹${teacher.balance}`);
-        });
+    // Log each teacher's pending balance
+    teachersWithBalance.forEach(teacher => {
+      console.log(`🔹 ${teacher.name} (Email: ${teacher.email}) has pending salary: ₹${teacher.balance}`);
+    });
 
-        // Aggregate total salary
-        const totalSalary = await Teacher.aggregate([
-            { $group: { _id: null, totalAmount: { $sum: "$balance" } } }
-        ]);
+    // Aggregate total salary
+    const totalSalary = await Teacher.aggregate([
+      { $group: { _id: null, totalAmount: { $sum: "$balance" } } }
+    ]);
 
-        // Get total amount or default to 0
-        const totalAmount = totalSalary?.[0]?.totalAmount || 0;
+    // Get total amount or default to 0
+    const totalAmount = totalSalary?.[0]?.totalAmount || 0;
 
-        console.log("✅ Total pending salary is:", totalAmount);
+    console.log("✅ Total pending salary is:", totalAmount);
 
-        // Format response with required fields
-        const teachersData = teachersWithBalance.map(teacher => ({
-            name: teacher.name,
-            email: teacher.email,
-            pendingSalary: teacher.balance
-        }));
+    // Format response with required fields
+    const teachersData = teachersWithBalance.map(teacher => ({
+      name: teacher.name,
+      email: teacher.email,
+      pendingSalary: teacher.balance
+    }));
 
-        res.json({
-            success: true,
-            totalPendingSalary: totalAmount,
-            teachers: teachersData  // Returning formatted teacher data
-        });
+    res.json({
+      success: true,
+      totalPendingSalary: totalAmount,
+      teachers: teachersData  // Returning formatted teacher data
+    });
 
-    } catch (error) {
-        console.error("❌ Error fetching total pending salary:", error.message);
-        res.status(500).json({
-            error: "Error fetching total pending salary",
-            details: error.message
-        });
-    }
+  } catch (error) {
+    console.error("❌ Error fetching total pending salary:", error.message);
+    res.status(500).json({
+      error: "Error fetching total pending salary",
+      details: error.message
+    });
+  }
 };

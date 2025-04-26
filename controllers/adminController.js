@@ -520,7 +520,7 @@ exports.leaderboardCreditReward = async (req, res) => {
       });
 
       // Send styled reward email
-      const subject = `🏆 Congrats! You ranked ${i + 1} in "${quiz.title}"`;
+      const subject = `🏆 Congrats! You ranked ${i + 1} in "${quiz.topic}"`;
       const html = `
         <div style="font-family: Arial, sans-serif; padding: 20px; border-radius: 10px; background-color: #f5f5f5;">
           <h2 style="color: #2e7d32;">🎉 Congratulations ${student.name}!</h2>
