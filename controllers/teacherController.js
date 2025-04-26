@@ -19,8 +19,8 @@ exports.registerTeacher = async (req, res) => {
   try {
     const { name, email, password, contactNumber, profilepicURL, about, areas_of_expertise, city ,accountNo ,ifscCode} = req.body;
 
-    if (!name || !email || !password || !profilepicURL) {
-      return res.status(400).json({ error: "Name, Email, Password, and Profile Picture are required." });
+    if (!name || !email || !password ) {
+      return res.status(400).json({ error: "Name, Email, and Password are required." });
     }
 
     const existingTeacher = await Teacher.findOne({ email });
