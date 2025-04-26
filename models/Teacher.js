@@ -7,7 +7,7 @@ const teacherSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   contactNumber: { type: Number },
-  profilepicURL: { type: String, required: true },
+  profilepicURL: { type: String, required: false },
   about: { type: String },
   areas_of_expertise: [{ type: String }],
   city: { type: String },

@@ -10,8 +10,8 @@ const courseSchema = new mongoose.Schema({
   description: { type: String },
   modules: [{ type: mongoose.Schema.Types.ObjectId, ref: "Module" }],
 
-  price: { type: Number, required: true }, // Base price calculated from module prices
-  sell_price: { type: Number, required: true }, // Final selling price including extra charges
+  price: { type: Number, required: true ,  set: (value) => parseFloat(value.toFixed(2)) }, // Base price calculated from module prices
+  sell_price: { type: Number, required: true ,  set: (value) => parseFloat(value.toFixed(2)) }, // Final selling price including extra charges
 
   isActivate: { type: Boolean, default: true },
   teacherId: { type: mongoose.Schema.Types.ObjectId, ref: "Teacher", required: true },
