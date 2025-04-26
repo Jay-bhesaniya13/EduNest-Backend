@@ -27,6 +27,17 @@ const teacherSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+// image url
+teacherSchema.post("save", async function (doc, next) {
+  if (doc.name && !doc.profilepicURL) {
+      const initials = doc.name.slice(0, 2).toUpperCase(); // First two letters
+      doc.profilepicURL = `https://api.dicebear.com/8.x/initials/svg?seed=${initials}`;
+      await doc.save(); // Save the updated profile picture URL
+  }
+  next();
+});
+
+
 // Middleware to create a BalanceHistory entry when a new teacher is created
 teacherSchema.post("save", async function (doc, next) {
     try {

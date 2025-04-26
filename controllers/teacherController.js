@@ -38,7 +38,7 @@ exports.registerTeacher = async (req, res) => {
     const otpExpiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
 
     const tempTeacher = new TempTeacher({
-      name, email, password: hashedPassword, contactNumber, profilepicURL, about, areas_of_expertise, city, otp, otpExpiresAt
+      name, email, password: hashedPassword, contactNumber, profilepicURL, about, areas_of_expertise, city, otp, otpExpiresAt ,accountNo ,ifscCode
     });
 
     await tempTeacher.save();
@@ -211,7 +211,6 @@ exports.getTeacherProfile = async (req, res) => {
 };
 
 
-// **7. Update Teacher's Own Profile**
 // **7. Update Teacher's Own Profile**
 exports.updateTeacherProfile = async (req, res) => {
   try {
