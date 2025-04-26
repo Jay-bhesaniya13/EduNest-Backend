@@ -28,17 +28,22 @@ const teacherSchema = new mongoose.Schema({
 });
 
 // image url
-teacherSchema.pre("save", async function (doc, next) {
-  if (doc.name && !doc.profilepicURL) {
-    const initials = doc.name
-      .split(' ') // Split the name into words
-      .map(word => word.charAt(0).toUpperCase()) // Get the first letter of each word
-      .join(''); // Join the letters together
-    doc.profilepicURL = `https://api.dicebear.com/8.x/initials/svg?seed=${initials}`;
-    await doc.save(); // Save the updated profile picture URL
+// image url
+teacherSchema.pre("save", async function (next) {
+  try {
+    if (this.name && !this.profilepicURL) {
+      const initials = this.name
+        .split(' ') // Split the name into words
+        .map(word => word.charAt(0).toUpperCase()) // Get first letter of each word
+        .join(''); // Join them
+      this.profilepicURL = `https://api.dicebear.com/8.x/initials/svg?seed=${initials}`;
+    }
+    next(); // ✅ call next properly
+  } catch (err) {
+    next(err); // ✅ pass errors to next
   }
-  next();
 });
+
 
 
 // Middleware to create a BalanceHistory entry when a new teacher is created
