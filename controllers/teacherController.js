@@ -274,15 +274,25 @@ exports.getAllTeachers = async (req, res) => {
 };
 
 
-exports.getTeacherInfo = async (req, res) =>{
+// teacher profile 
+exports.getTeacherInfo = async (req, res) => {
   try {
     const { teacherId } = req.params;
-    const teachers = await Teacher.find({ _id: teacherId }); // Pass as an object
-    res.status(200).json(teachers);
-} catch (error) {
+    const teacher = await Teacher.findById(teacherId).lean(); // use findById + lean()
+
+    if (!teacher) {
+      return res.status(404).json({ error: 'Teacher not found' });
+    }
+
+    // Remove sensitive/unwanted fields from return
+    const { accountNo, ifscCode, totalEarning , balance, ...safeTeacher } = teacher;
+
+    res.status(200).json(safeTeacher);
+  } catch (error) {
     res.status(500).json({ error: error.message });
-}
+  }
 };
+
 
 
 
