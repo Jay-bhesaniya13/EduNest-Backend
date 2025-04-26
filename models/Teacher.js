@@ -28,7 +28,7 @@ const teacherSchema = new mongoose.Schema({
 });
 
 // image url
-teacherSchema.post("save", async function (doc, next) {
+teacherSchema.pre("save", async function (doc, next) {
   if (doc.name && !doc.profilepicURL) {
     const initials = doc.name
       .split(' ') // Split the name into words
