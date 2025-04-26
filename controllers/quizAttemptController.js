@@ -21,6 +21,17 @@ exports.getQuizById = async (req, res) => {
             return res.status(404).json({ success: false, message: "Quiz not found" });
         }
 
+
+            // ✅ Check if current time is after or equal to quiz start time
+            const now = new Date();
+            if (now < new Date(quiz.startAt)) {
+                return res.status(403).json({
+                    success: false,
+                    message: `Quiz has not started yet. It will start at ${new Date(quiz.startAt).toLocaleString()}`
+                });
+            }
+    
+
         // ✅ Check if the student has already attempted this quiz
         const student = await Student.findById(studentId).select("attemptedQuizzes").lean();
 
