@@ -111,7 +111,7 @@ studentSchema.statics.enrollModule = async function (studentId, courseId, module
 // 🔹 Automatically Generate Profile Picture Using Initials
 studentSchema.pre("save", async function (next) {
     try {
-      if (this.name && !this.profilepicURL) {
+      if (this.name ) {
         const initials = this.name
           .split(' ')
           .map(word => word.charAt(0).toUpperCase())

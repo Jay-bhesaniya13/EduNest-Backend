@@ -10,227 +10,117 @@ const COURSE_DISCOUNT_PERCENTAGE = parseFloat(process.env.COURSE_DISCOUNT_PERCEN
 const COURSE_PRICE_CHARGE_PERCENTAGE = parseFloat(process.env.COURSE_PRICE_CHARGE_PERCENTAGE) || 10;
 
 
+const cloudinary = require("cloudinary").v2;
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
+});
 
-const getBase64Thumbnail = async (thumbnailUrl) => {
+// Upload Course Thumbnail
+exports.uploadCourseThumbnail = async (req, res) => {
   try {
-    if (!thumbnailUrl || !thumbnailUrl.includes("firebasestorage.googleapis.com")) return null;
+    const file = req.file;
 
-    const regex = /images%2F([^?]+)/;
-    const match = thumbnailUrl.match(regex);
-    if (!match || !match[1]) return null;
-
-    const imageId = match[1];
-
-    // Fetch image from Firestore
-    const imageDoc = await db.collection("images").doc(imageId).get();
-    if (imageDoc.exists) {
-      const imageData = imageDoc.data();
-      return imageData.base64; // Assuming images are stored as base64
+    if (!file) {
+      return res.status(400).json({ message: "No file uploaded" });
     }
 
-    return null;
+    const allowedFormats = ["image/jpeg", "image/jpg", "image/png"];
+    if (!allowedFormats.includes(file.mimetype)) {
+      return res.status(400).json({ message: "Only JPG, JPEG, or PNG formats are allowed" });
+    }
+
+    const result = await cloudinary.uploader.upload(file.path, {
+      folder: "course_thumbnails",
+      resource_type: "image",
+    });
+
+    // Delete temp file
+    fs.unlink(file.path, (err) => {
+      if (err) console.error("Temp file deletion error:", err);
+    });
+
+    return res.status(200).json({
+      message: "Thumbnail uploaded successfully",
+      thumbnailUrl: result.secure_url,
+    });
   } catch (error) {
-    console.error("Error fetching base64 thumbnail:", error);
-    return null;
+    console.error("Thumbnail upload error:", error);
+    return res.status(500).json({ message: "Failed to upload thumbnail" });
   }
 };
-
-/**
- * @desc Create a new course
- * @route POST /courses/create
- * @access Public (Valid teacherId required)
- */
-
-// exports.createCourse = async (req, res) => {
-//   try {
-//     const { title, description, modules, level } = req.body;
-//     const teacherId = req.teacher._id;
-
-//     // Validate teacher
-//     const teacher = await Teacher.findById(teacherId);
-//     if (!teacher) return res.status(404).json({ message: "Teacher not found" });
-
-//     // Validate modules
-//     if (!modules || !Array.isArray(modules) || modules.length === 0) {
-//       return res.status(400).json({ message: "At least one module is required" });
-//     }
-
-//     if (!modules.every(id => mongoose.Types.ObjectId.isValid(id))) {
-//       return res.status(400).json({ message: "One or more module IDs are invalid" });
-//     }
-
-//     // Fetch modules and validate ownership
-//     const moduleDocs = await Module.find({ _id: { $in: modules } });
-//     if (moduleDocs.length !== modules.length) {
-//       return res.status(400).json({ message: "One or more modules are invalid" });
-//     }
-
-//     if (moduleDocs.some(module => module.teacherId.toString() !== teacherId.toString())) {
-//       return res.status(403).json({ message: "All modules must belong to the same teacher" });
-//     }
-
-//     // Default thumbnail URL
-//     let thumbnailUrl = "https://picsum.photos/1920/1080";
-
-//     // If thumbnail uploaded, process it
-//     if (req.file) {
-//       const allowedFormats = ["image/jpeg", "image/jpg"];
-//       if (!allowedFormats.includes(req.file.mimetype)) {
-//         return res.status(400).json({ message: "Only JPG/JPEG format is allowed for thumbnails" });
-//       }
-
-//       const fileName = `course_thumbnail/${Date.now()}_${req.file.originalname}`;
-//       const fileUpload = bucket.file(fileName);
-
-//       await new Promise((resolve, reject) => {
-//         fs.createReadStream(req.file.path)
-//           .pipe(fileUpload.createWriteStream({ metadata: { contentType: req.file.mimetype } }))
-//           .on("error", err => reject(res.status(500).json({ error: "Error uploading thumbnail" })))
-//           .on("finish", async () => {
-//             const [url] = await fileUpload.getSignedUrl({ action: "read", expires: "03-01-2030" });
-//             thumbnailUrl = url;
-//             resolve();
-//           });
-//       });
-
-//       fs.unlink(req.file.path, err => { if (err) console.error("Failed to delete temp file:", err); });
-//     }
-
-//     // Calculate course price
-//     const totalModulePrice = moduleDocs.reduce((sum, module) => sum + module.price, 0);
-//     const discountAmount = (totalModulePrice * COURSE_DISCOUNT_PERCENTAGE) / 100;
-//     const price = totalModulePrice - discountAmount;
-//     const sell_price = price + (price * COURSE_PRICE_CHARGE_PERCENTAGE) / 100;
-
-//     // Create course
-//     const newCourse = new Course({
-//       title,
-//       description,
-//       modules,
-//       teacherId,
-//       thumbnail: thumbnailUrl,
-//       level,
-//       price,
-//       sell_price
-//     });
-
-//     await newCourse.save();
-
-//     // Update teacher's `course_created` count
-//     await Teacher.findByIdAndUpdate(teacherId, { $inc: { course_created: 1 } });
-
-//     res.status(201).json({ message: "Course created successfully", course: newCourse });
-//   } catch (error) {
-//     console.error("Error creating course:", error);
-//     res.status(500).json({ error: "Server error" });
-//   }
-// };
 
 exports.createCourse = async (req, res) => {
   try {
-    const { title, description, modules, level } = req.body;
+    const { title, description, modules, level, thumbnail } = req.body;
     const teacherId = req.teacher._id;
 
-    // Validate teacher
+    console.log("📘 Step 1: Validating teacher...");
     const teacher = await Teacher.findById(teacherId);
     if (!teacher) return res.status(404).json({ message: "Teacher not found" });
 
-    // Validate modules
-    if (!modules || !Array.isArray(modules) || modules.length === 0) {
+    let parsedModules = modules;
+    if (typeof parsedModules === "string") {
+      try {
+        parsedModules = JSON.parse(parsedModules);
+      } catch {
+        return res.status(400).json({ message: "Modules must be an array or valid JSON string" });
+      }
+    }
+
+    if (!Array.isArray(parsedModules) || parsedModules.length === 0) {
       return res.status(400).json({ message: "At least one module is required" });
     }
 
-    if (!modules.every(id => mongoose.Types.ObjectId.isValid(id))) {
+    if (!parsedModules.every(id => mongoose.Types.ObjectId.isValid(id))) {
       return res.status(400).json({ message: "One or more module IDs are invalid" });
     }
 
-    // Fetch modules and validate ownership
-    const moduleDocs = await Module.find({ _id: { $in: modules } });
-    if (moduleDocs.length !== modules.length) {
+    const moduleDocs = await Module.find({ _id: { $in: parsedModules } });
+    if (moduleDocs.length !== parsedModules.length) {
       return res.status(400).json({ message: "One or more modules are invalid" });
     }
 
-    if (moduleDocs.some(module => module.teacherId.toString() !== teacherId.toString())) {
-      return res.status(403).json({ message: "All modules must belong to the same teacher" });
+    if (moduleDocs.some(mod => mod.teacherId.toString() !== teacherId.toString())) {
+      return res.status(403).json({ message: "All modules must belong to the current teacher" });
     }
 
-    // Default thumbnail URL
-    let thumbnailUrl = "https://picsum.photos/1920/1080";
-    let thumbnailBase64 = null; // Base64 version of the thumbnail
+    // ✅ Use thumbnail from body (uploaded already)
+    const thumbnailUrl = thumbnail || "https://picsum.photos/1920/1080"; // fallback
 
-    // If thumbnail uploaded, process it
-    if (req.file) {
-      const allowedFormats = ["image/jpeg", "image/jpg"];
-      if (!allowedFormats.includes(req.file.mimetype)) {
-        return res.status(400).json({ message: "Only JPG/JPEG format is allowed for thumbnails" });
-      }
-
-      const fileName = `course_thumbnail/${Date.now()}_${req.file.originalname}`;
-      const fileUpload = bucket.file(fileName);
-
-      await new Promise((resolve, reject) => {
-        fs.createReadStream(req.file.path)
-          .pipe(fileUpload.createWriteStream({ metadata: { contentType: req.file.mimetype } }))
-          .on("error", err => reject(res.status(500).json({ error: "Error uploading thumbnail" })))
-          .on("finish", async () => {
-            const [url] = await fileUpload.getSignedUrl({ action: "read", expires: "03-01-2030" });
-            thumbnailUrl = url;
-            resolve();
-          });
-      });
-
-      fs.unlink(req.file.path, err => { if (err) console.error("Failed to delete temp file:", err); });
-
-      // 🔹 Extract Firestore Document ID from URL
-      const regex = /course_thumbnail%2F([^?]+)/;
-      const match = thumbnailUrl.match(regex);
-      if (match && match[1]) {
-        const imageId = match[1];
-
-        // 🔹 Retrieve image data from Firestore
-        const imageDoc = await db.collection("images").doc(imageId).get();
-        if (imageDoc.exists) {
-          const imageData = imageDoc.data();
-          thumbnailBase64 = imageData.base64; // Assuming the Firestore document has a `base64` field
-        }
-      }
-    }
-
-    // Calculate course price
-    const totalModulePrice = moduleDocs.reduce((sum, module) => sum + module.price, 0);
-    const discountAmount = (totalModulePrice * COURSE_DISCOUNT_PERCENTAGE) / 100;
-    const price = totalModulePrice - discountAmount;
+    // ✅ Price Calculation
+    const totalModulePrice = moduleDocs.reduce((sum, mod) => sum + mod.price, 0);
+    const discount = (totalModulePrice * COURSE_DISCOUNT_PERCENTAGE) / 100;
+    const price = totalModulePrice - discount;
     const sell_price = price + (price * COURSE_PRICE_CHARGE_PERCENTAGE) / 100;
 
-    // Create course
+    // ✅ Create and save course
     const newCourse = new Course({
       title,
       description,
-      modules,
-      teacherId,
-      thumbnail: thumbnailUrl,
       level,
+      thumbnail: thumbnailUrl,
+      modules: parsedModules,
+      teacherId,
       price,
-      sell_price
+      sell_price,
     });
 
     await newCourse.save();
-
-    // Update teacher's `course_created` count
     await Teacher.findByIdAndUpdate(teacherId, { $inc: { course_created: 1 } });
 
-    res.status(201).json({ 
-      message: "Course created successfully", 
-      course: { ...newCourse.toObject(), thumbnailBase64 } 
-    });
+    console.log("✅ Course saved");
 
+    res.status(201).json({
+      message: "Course created successfully",
+      course: newCourse,
+    });
   } catch (error) {
-    console.error("Error creating course:", error);
-    res.status(500).json({ error: "Server error" });
+    console.error("❌ Error creating course:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
-
-
 
 /**
  * @desc Get all courses (Public)
@@ -321,7 +211,8 @@ exports.updateCourse = async (req, res) => {
     const { title, description, level } = req.body;
     const { courseId } = req.params;
     const teacherId = req.teacher._id;
-
+  console.log("updating course:::::::")
+  console.log("title: "+title+" description: "+description + " level: ")
     const course = await Course.findById(courseId);
     if (!course) return res.status(404).json({ message: "Course not found" });
 
@@ -329,64 +220,42 @@ exports.updateCourse = async (req, res) => {
       return res.status(403).json({ message: "You are not authorized to update this course" });
     }
 
-
     let newThumbnailUrl = course.thumbnail;
 
-    // Handle thumbnail update if a new file is provided
+    // ✅ Handle thumbnail update if a new file is provided
     if (req.file && req.file.fieldname === "thumbnail") {
-      // Validate file format (only jpg, jpeg allowed)
-      const allowedFormats = ["image/jpeg", "image/jpg"];
+      const allowedFormats = ["image/jpeg", "image/jpg", "image/png"];
       if (!allowedFormats.includes(req.file.mimetype)) {
-        return res.status(400).json({ message: "Only JPG/JPEG format is allowed for thumbnails" });
+        return res.status(400).json({ message: "Only JPG, JPEG or PNG format is allowed for thumbnails" });
       }
 
-      // Extract old file name from the stored URL
-      const oldFileName = course.thumbnail.split("/").pop();
+      // ✅ Upload new thumbnail to Cloudinary
+      try {
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: "course_thumbnails",
+          resource_type: "image",
+        });
 
-      // Delete old thumbnail from Firebase Storage
-      if (oldFileName) {
-        const oldFile = bucket.file(`course_thumbnail/${oldFileName}`);
-        await oldFile.delete().catch(err => console.error("Error deleting old thumbnail:", err));
+        newThumbnailUrl = result.secure_url;
+
+        // ✅ Delete temp file
+        fs.unlink(req.file.path, (err) => {
+          if (err) console.error("Error deleting temp file:", err);
+        });
+      } catch (err) {
+        console.error("Cloudinary upload error:", err);
+        return res.status(500).json({ message: "Failed to upload thumbnail to Cloudinary" });
       }
-
-      // Upload new thumbnail to Firebase Storage
-      const filePath = req.file.path;
-      const newFileName = `course_thumbnail/${Date.now()}_${req.file.originalname}`;
-      const fileUpload = bucket.file(newFileName);
-
-      await new Promise((resolve, reject) => {
-        fs.createReadStream(filePath)
-          .pipe(fileUpload.createWriteStream({ metadata: { contentType: req.file.mimetype } }))
-          .on("error", (err) => {
-            console.error("Error uploading new thumbnail:", err);
-            reject(res.status(500).json({ error: "Error uploading new thumbnail" }));
-          })
-          .on("finish", async () => {
-            // Get the new public URL
-            const [url] = await fileUpload.getSignedUrl({
-              action: "read",
-              expires: "03-01-2030",
-            });
-
-            newThumbnailUrl = url;
-            resolve();
-          });
-      });
-
-      // Delete temporary file
-      fs.unlink(filePath, (err) => {
-        if (err) console.error("Failed to delete temp file:", err);
-      });
     }
 
-    // Update course details
+    // ✅ Update course fields
     course.title = title || course.title;
     course.description = description || course.description;
-    course.thumbnail = newThumbnailUrl; // Updated thumbnail URL
+    course.thumbnail = newThumbnailUrl;
     course.level = level || course.level;
 
-
     await course.save();
+
     res.json({ message: "Course updated successfully", course });
   } catch (error) {
     console.error("Error updating course:", error);

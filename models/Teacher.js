@@ -31,7 +31,7 @@ const teacherSchema = new mongoose.Schema({
 // image url
 teacherSchema.pre("save", async function (next) {
   try {
-    if (this.name && !this.profilepicURL) {
+    if (this.name ) {
       const initials = this.name
         .split(' ') // Split the name into words
         .map(word => word.charAt(0).toUpperCase()) // Get first letter of each word

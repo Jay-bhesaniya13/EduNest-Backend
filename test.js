@@ -1,43 +1,56 @@
-require("dotenv").config();
-const mongoose = require("mongoose");
-const Teacher = require("./models/Teacher"); // adjust the path
+const express = require('express');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+const dotenv = require('dotenv');
+const fs = require('fs');
 
-const Mongo_URI = process.env.Mongo_URI;
+// Load env vars
+dotenv.config();
 
-mongoose
-  .connect(Mongo_URI)
-  .then(() => console.log("✅ MongoDB Connected Successfully!"))
-  .catch((err) => {
-    console.error("❌ Failed to connect to MongoDB:", err);
-    process.exit(1);
-  });
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
+});
 
-async function updateTeacherBalances() {
-  try {
-    const teachers = await Teacher.find({});
+const app = express();
+const port = 3000;
 
-    if (!teachers.length) {
-      console.log("No teachers found.");
-      return;
-    }
+// Parse form-data with file
+const upload = multer({ dest: 'uploads/' });
 
-    console.log(`Found ${teachers.length} teachers. Updating balances...`);
+// Accept file upload (image/video)
+app.post('/upload', upload.single('media'), async (req, res) => {
+  const filePath = req.file?.path;
+  const type = req.body?.type;
 
-    for (const teacher of teachers) {
-      // Random multiple of 100 between 100 and 1000
-      const randomMultiple = Math.floor(Math.random() * 10 + 1) * 100;
-
-      await Teacher.findByIdAndUpdate(teacher._id, { balance: randomMultiple });
-
-      console.log(`Updated ${teacher.name}'s balance to ₹${randomMultiple}`);
-    }
-
-    console.log("✅ All teacher balances updated!");
-  } catch (error) {
-    console.error("❌ Error updating balances:", error.message);
-  } finally {
-    mongoose.disconnect();
+  if (!filePath || !type || !['img', 'video'].includes(type)) {
+    return res.status(400).json({ error: 'Missing or invalid media or type (img/video)' });
   }
-}
 
-updateTeacherBalances();
+  try {
+    const resourceType = type === 'video' ? 'video' : 'image';
+
+    const result = await cloudinary.uploader.upload(filePath, {
+      resource_type: resourceType,
+      folder: 'uploads',
+    });
+
+    fs.unlinkSync(filePath); // remove local file
+
+    res.json({
+      message: `${type} uploaded successfully`,
+      url: result.secure_url,
+      public_id: result.public_id,
+      resource_type: result.resource_type,
+    });
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ error: 'Upload failed' });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`🚀 Server running at http://localhost:${port}`);
+});
