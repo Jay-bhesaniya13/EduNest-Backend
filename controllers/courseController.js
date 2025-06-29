@@ -134,8 +134,7 @@ exports.getAllCourses = async (req, res) => {
     // Fetch base64 thumbnails
     const coursesWithThumbnails = await Promise.all(
       courses.map(async (course) => {
-        const thumbnailBase64 = await getBase64Thumbnail(course.thumbnail);
-        return { ...course.toObject(), thumbnailBase64 };
+         return { ...course.toObject() };
       })
     );
 
@@ -159,9 +158,8 @@ exports.getCourseById = async (req, res) => {
 
     if (!course) return res.status(404).json({ message: "Course not found" });
 
-    const thumbnailBase64 = await getBase64Thumbnail(course.thumbnail);
 
-    res.status(200).json({ ...course.toObject(), thumbnailBase64 });
+    res.status(200).json({ ...course.toObject() });
   } catch (error) {
     console.error("Error fetching course:", error);
     res.status(500).json({ message: "Error retrieving course" });
@@ -188,8 +186,7 @@ exports.getAllCoursesForTeacher = async (req, res) => {
     // Fetch base64 thumbnails
     const coursesWithThumbnails = await Promise.all(
       courses.map(async (course) => {
-        const thumbnailBase64 = await getBase64Thumbnail(course.thumbnail);
-        return { ...course.toObject(), thumbnailBase64 };
+        return { ...course.toObject() };
       })
     );
 
