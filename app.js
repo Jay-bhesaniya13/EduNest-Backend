@@ -29,15 +29,39 @@ const app = express();
 const Mongo_URI=process.env.MONGO_URI;
 const PORT = process.env.PORT || 5000;
 
+
+const cookieParser = require("cookie-parser");
+
+app.use(cookieParser());
+
 // Middleware to parse JSON bodies
 app.use(express.json());
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",       // Your dev frontend
+  "http://127.0.0.1:3000",       // Loopback IP
+  "http://localhost:5173",       // Vite frontend
+  "http://192.168.1.45:3000",    // Another local machine IP
+  "https://edunest-seven.vercel.app",
+  "https://edunest-three.vercel.app/",
+  "https://684cfe5ef153d144e394c4e1--gentle-melomakarona-51bc2f.netlify.app/"
+];
+
 // app.use(cors({ origin: "*" }));
 app.use(cors({
-  origin: "*",
+  // origin:"*",
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like curl or mobile app) or allowed origin
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true // Enable if your frontend uses cookies or auth tokens
+  credentials: true 
 }));
 
 
@@ -45,13 +69,14 @@ app.use(cors({
 require("./schedulers/monthlyBonus");
 
 
-// default
-app.get("/", (req, res) => {
-  res.send("Hello");
-});
+// // default
+// app.get("/", (req, res) => {
+//   console.log("hello")
+// });
  
 
 // Routes 
+
 app.use("/api/course",courseRoutes);
 app.use("/api/student", studentRoutes);
 app.use("/api/reward", rewardRoutes);

@@ -186,7 +186,8 @@ exports.resendOTP = async (req, res) => {
 // 4️⃣ **LOGIN WITH VERIFIED ACCOUNT**
 exports.loginStudent = async (req, res) => {
   try {
-    const { email, password } = req.body;
+
+     const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: "Email and Password are required." });
@@ -209,6 +210,15 @@ exports.loginStudent = async (req, res) => {
 
     // 🔹 Generate JWT Token
     const token = jwt.sign({ id: student._id }, jwtSecret, { expiresIn: "7d" });
+
+      // Set cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production", // true on production
+      sameSite: "Lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
 
     return res.status(200).json({
       message: "Login successful.",
