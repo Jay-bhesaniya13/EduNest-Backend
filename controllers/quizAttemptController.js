@@ -22,15 +22,26 @@ exports.getQuizById = async (req, res) => {
         }
 
 
-            // ✅ Check if current time is after or equal to quiz start time
-            const now = new Date();
-            if (now < new Date(quiz.startAt)) {
-                return res.status(403).json({
-                    success: false,
-                    message: `Quiz has not started yet. It will start at ${new Date(quiz.startAt).toLocaleString()}`
-                });
-            }
-    
+        // ✅ Check if current time is within the valid quiz window (startAt to startAt + duration)
+        const now = new Date();
+        const startTime = new Date(quiz.startAt);
+        const endTime = new Date(startTime.getTime() + quiz.duration * 60000); // duration in minutes
+
+        if (now < startTime) {
+            return res.status(403).json({
+                success: false,
+                message: `Quiz has not started yet. It will start at ${startTime.toLocaleString()}`
+            });
+        }
+
+        if (now > endTime) {
+            return res.status(403).json({
+                success: false,
+                message: `Quiz has already ended. It was available from ${startTime.toLocaleString()} to ${endTime.toLocaleString()}`
+            });
+        }
+
+
 
         // ✅ Check if the student has already attempted this quiz
         const student = await Student.findById(studentId).select("attemptedQuizzes").lean();
@@ -41,14 +52,14 @@ exports.getQuizById = async (req, res) => {
 
         student.attemptedQuizzes = student.attemptedQuizzes || []; // Ensure it's an array
 
-        const hasAttempted = student.attemptedQuizzes.some(attempt => 
-            attempt.quizId== quizId
+        const hasAttempted = student.attemptedQuizzes.some(attempt =>
+            attempt.quizId == quizId
         );
 
         if (hasAttempted) {
-            return res.status(403).json({ 
-                success: false, 
-                message: "You have already attempted this quiz. You cannot access it again." 
+            return res.status(403).json({
+                success: false,
+                message: "You have already attempted this quiz. You cannot access it again."
             });
         }
 
@@ -173,7 +184,7 @@ exports.submitQuizAttempt = async (req, res) => {
         if (!student) throw new Error("Student not found.");
 
         // ❌ Prevent multiple attempts (Student can only attempt once)
-        const hasAttempted = student.attemptedQuizzes.some(q => q.quizId== quizId);
+        const hasAttempted = student.attemptedQuizzes.some(q => q.quizId == quizId);
         if (hasAttempted) throw new Error("You have already attempted this quiz.");
 
         // ✅ Calculate `timeTaken`
@@ -192,7 +203,7 @@ exports.submitQuizAttempt = async (req, res) => {
         let submittedAnswers = [];
 
         answers.forEach(answer => {
-            const question = questions.find(q => q._id== answer.questionId);
+            const question = questions.find(q => q._id == answer.questionId);
             if (question) {
                 maxMarks += question.marks;
                 if (question.correctAnswerIndex === answer.selectedAnswerIndex) {
